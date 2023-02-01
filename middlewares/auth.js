@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const publicRoutes = ['/login/', '/signup/'];
+const publicRoutes = ['/login/', '/signup/', '/logout/'];
 
 function verifyToken(req, res, next) {
   const url = req.originalUrl;

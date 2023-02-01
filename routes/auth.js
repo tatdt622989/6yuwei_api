@@ -4,6 +4,7 @@ const router = express.Router({ strict: true });
 const bodyParser = require('body-parser');
 const path = require('path');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 // models
 const User = require('../models/user');
 
@@ -128,6 +129,27 @@ router.post('/login/', urlencodedParser, async (req, res) => {
   return res.json({
     code: 400,
     msg: '用戶不存在',
+  });
+});
+
+// 登出
+router.post('/logout/', (req, res) => {
+  const token = req.cookies.access_token;
+  if (token) {
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+      if (decoded) {
+        // add to blacklist
+      }
+      return res.json({
+        code: 200,
+        msg: '登出成功',
+      });
+    });
+    res.clearCookie('access_token');
+  }
+  return res.json({
+    code: 400,
+    msg: '未在登入狀態',
   });
 });
 
