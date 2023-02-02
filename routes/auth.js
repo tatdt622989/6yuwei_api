@@ -7,6 +7,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 // models
 const User = require('../models/user');
+const TokenBlackList = require('../models/token_blackList');
 
 const app = express();
 
@@ -133,19 +134,37 @@ router.post('/login/', urlencodedParser, async (req, res) => {
 });
 
 // 登出
-router.post('/logout/', (req, res) => {
+router.post('/logout/', async (req, res) => {
   const token = req.cookies.access_token;
   if (token) {
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
       if (decoded) {
-        // add to blacklist
+        // check if the token is in the blacklist
+        const isTokenExist = await TokenBlackList.findOne({ token });
+        // if not, add it to the blacklist
+        if (!isTokenExist) {
+          const tokenBlackList = new TokenBlackList({
+            token,
+            expiresAt: new Date(decoded.exp * 1000),
+            issuedAt: new Date(decoded.iat * 1000),
+          });
+          await tokenBlackList.save().catch((dataErr) => {
+            res.json({
+              code: 500,
+              msg: `登出失敗-${dataErr}`,
+            });
+          });
+        }
+        // const tokenBlackList = new TokenBlackList({
+        //   token,
+        // });
       }
-      return res.json({
-        code: 200,
-        msg: '登出成功',
-      });
+      res.clearCookie('access_token');
     });
-    res.clearCookie('access_token');
+    return res.json({
+      code: 200,
+      msg: '登出成功',
+    });
   }
   return res.json({
     code: 400,
