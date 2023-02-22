@@ -3,7 +3,6 @@ const express = require('express');
 const router = express.Router({ strict: true });
 const bodyParser = require('body-parser');
 const path = require('path');
-const cors = require('cors');
 const jwt = require('jsonwebtoken');
 // models
 const User = require('../models/user');
@@ -12,22 +11,6 @@ const TokenBlackList = require('../models/token_blackList');
 const app = express();
 
 const urlencodedParser = bodyParser.urlencoded({ extended: false });
-
-// 跨域設定
-const allowedOrigins = ['http://localhost:3000', 'https://6yuwei.com'];
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-  }),
-);
 
 app.use(express.static(path.resolve(__dirname, 'public')));
 app.use(express.static(path.resolve(__dirname, 'node_modules')));

@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const { Configuration, OpenAIApi } = require('openai');
 const authRouter = require('./routes/auth');
 const { verifyToken } = require('./middlewares/auth');
+const cors = require('cors');
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
@@ -24,6 +25,22 @@ mongoose
   });
 
 const app = express();
+
+// 跨域設定
+const allowedOrigins = ['http://localhost:3000', 'https://6yuwei.com', 'http://127.0.0.1:5500/'];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 app.use(cookieParser());
 
@@ -50,7 +67,7 @@ app.get('/', (req, res) => {
 app.get('/chat/', async (req, res) => {
   const { prompt } = req.query;
   const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: OpenAIAPIKey,
   });
   const openai = new OpenAIApi(configuration);
   const response = await openai.createCompletion({
