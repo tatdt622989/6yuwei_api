@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
+const { Configuration, OpenAIApi } = require('openai');
 const authRouter = require('./routes/auth');
 const { verifyToken } = require('./middlewares/auth');
 
@@ -46,17 +47,27 @@ app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
 });
 
+app.get('/chat/', async (req, res) => {
+  const { prompt } = req.query;
+  const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  const openai = new OpenAIApi(configuration);
+  const response = await openai.createCompletion({
+    model: 'text-davinci-003',
+    prompt,
+    temperature: 0,
+    max_tokens: 7,
+  });
+  res.send(response);
+});
+
 // 回傳JSON格式
 /* app.get('/json', (req, res) => {
   res.json({
     name: 'John',
     age: 30
   });
-}); */
-
-// 旧URLを新URLにリダイレクトする (302)
-/* app.get('/old_json', (req, res) => {
-  res.redirect('/json');
 }); */
 
 // 動態路徑

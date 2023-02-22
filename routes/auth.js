@@ -155,9 +155,6 @@ router.post('/logout/', async (req, res) => {
             });
           });
         }
-        // const tokenBlackList = new TokenBlackList({
-        //   token,
-        // });
       }
       res.clearCookie('access_token');
     });
@@ -170,6 +167,43 @@ router.post('/logout/', async (req, res) => {
     code: 400,
     msg: '未在登入狀態',
   });
+});
+
+// 確認登入狀態
+router.post('/loginStatus/', async (req, res) => {
+  const token = req.cookies.access_token;
+  if (token) {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+      if (decoded) {
+        req.user = decoded;
+        const isTokenInBlackList = await TokenBlackList.findOne({ token });
+        if (isTokenInBlackList) {
+          return res.json({
+            code: 403,
+            msg: 'Token已失效，請重新登入',
+          });
+        }
+        return res.json({
+          code: 200,
+          msg: '已登入',
+        });
+      }
+      if (err) {
+        if (err.name === 'TokenExpiredError') {
+          return res.json({
+            code: 403,
+            msg: '登入逾時，請重新登入',
+          });
+        }
+        return res.json({
+          code: 403,
+          msg: '請先登入',
+        });
+      }
+
+      return null;
+    });
+  }
 });
 
 // hash generator
