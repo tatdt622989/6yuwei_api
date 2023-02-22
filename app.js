@@ -48,7 +48,6 @@ app.get('/', (req, res) => {
 });
 
 app.get('/chat/', async (req, res) => {
-  console.log(OpenAIAPIKey);
   const { prompt } = req.query;
   const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
