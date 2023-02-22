@@ -4,7 +4,7 @@ const TokenBlackList = require('../models/token_blackList');
 const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/'];
 
 async function verifyToken(req, res, next) {
-  const url = req.originalUrl;
+  const url = req.originalUrl.split('?')[0];
   if (publicRoutes.includes(url)) {
     return next();
   }

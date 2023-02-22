@@ -7,6 +7,7 @@ const { verifyToken } = require('./middlewares/auth');
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
+const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 
 // 連接資料庫
 mongoose.set('strictQuery', true);
@@ -43,11 +44,11 @@ app.use(verifyToken);
 app.use('/', authRouter);
 
 app.get('/', (req, res) => {
-  console.log(process.env.NODE_ENV);
   res.send('ホームページへようこそ');
 });
 
 app.get('/chat/', async (req, res) => {
+  console.log(OpenAIAPIKey);
   const { prompt } = req.query;
   const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
@@ -57,9 +58,10 @@ app.get('/chat/', async (req, res) => {
     model: 'text-davinci-003',
     prompt,
     temperature: 0,
-    max_tokens: 7,
+    max_tokens: 300,
   });
-  res.send(response);
+  const { text } = response.data.choices[0];
+  res.json(text);
 });
 
 // 回傳JSON格式
