@@ -9,6 +9,7 @@ const { verifyToken } = require('./middlewares/auth');
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
+const env = process.env.NODE_ENV;
 
 // 連接資料庫
 mongoose.set('strictQuery', true);
@@ -28,8 +29,8 @@ const app = express();
 
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com'];
-if (process.env.NODE_ENV === 'development') {
-  allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:5500/'];
+if (env === 'development') {
+  allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:5500/', 'http://localhost:8888'];
 }
 
 app.use(
@@ -41,7 +42,7 @@ app.use(
         callback(new Error('Not allowed by CORS'));
       }
     },
-    methods: ['GET', 'POST', 'HEAD'],
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type'],
     credentials: true,
   }),
@@ -70,25 +71,19 @@ app.get('/', (req, res) => {
 });
 
 app.get('/chat/', async (req, res) => {
-  const { origin } = req.headers;
-  if (allowedOrigins.includes(origin)) {
-    const { prompt } = req.query;
-    const configuration = new Configuration({
-      apiKey: OpenAIAPIKey,
-    });
-    const openai = new OpenAIApi(configuration);
-    const response = await openai.createCompletion({
-      model: 'gpt-3.5-turbo',
-      prompt,
-      temperature: 1,
-      max_tokens: 4096,
-    });
-    const { text } = response.data.choices[0];
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.json(text);
-  } else {
-    res.status(403).send('Forbidden');
-  }
+  const { prompt } = req.query;
+  const configuration = new Configuration({
+    apiKey: OpenAIAPIKey,
+  });
+  const openai = new OpenAIApi(configuration);
+  const response = await openai.createCompletion({
+    model: 'gpt-3.5-turbo',
+    prompt,
+    temperature: 1,
+    max_tokens: 4096,
+  });
+  const { text } = response.data.choices[0];
+  res.json(text);
 });
 
 // 回傳JSON格式
