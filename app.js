@@ -76,14 +76,15 @@ app.get('/chat/', async (req, res) => {
     apiKey: OpenAIAPIKey,
   });
   const openai = new OpenAIApi(configuration);
-  const response = await openai.createCompletion({
+  const response = await openai.createChatCompletion({
     model: 'gpt-3.5-turbo',
-    prompt,
+    messages: [{ role: 'user', content: prompt }],
     temperature: 1,
-    max_tokens: 4096,
+    // max_tokens: 4096,
   });
-  const { text } = response.data.choices[0];
-  res.json(text);
+  console.log(response.data.choices);
+  const { content } = response.data.choices[0].message;
+  res.json(content);
 });
 
 // 回傳JSON格式
