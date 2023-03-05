@@ -2,9 +2,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const { Configuration, OpenAIApi } = require('openai');
+const cors = require('cors');
 const authRouter = require('./routes/auth');
 const { verifyToken } = require('./middlewares/auth');
-const cors = require('cors');
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
@@ -38,6 +38,8 @@ app.use(
         callback(new Error('Not allowed by CORS'));
       }
     },
+    methods: ['GET', 'POST', 'HEAD'],
+    allowedHeaders: ['Content-Type'],
     credentials: true,
   }),
 );
@@ -65,19 +67,25 @@ app.get('/', (req, res) => {
 });
 
 app.get('/chat/', async (req, res) => {
-  const { prompt } = req.query;
-  const configuration = new Configuration({
-    apiKey: OpenAIAPIKey,
-  });
-  const openai = new OpenAIApi(configuration);
-  const response = await openai.createCompletion({
-    model: 'text-davinci-003',
-    prompt,
-    temperature: 0,
-    max_tokens: 300,
-  });
-  const { text } = response.data.choices[0];
-  res.json(text);
+  const { origin } = req.headers;
+  if (allowedOrigins.includes(origin)) {
+    const { prompt } = req.query;
+    const configuration = new Configuration({
+      apiKey: OpenAIAPIKey,
+    });
+    const openai = new OpenAIApi(configuration);
+    const response = await openai.createCompletion({
+      model: 'gpt-3.5-turbo',
+      prompt,
+      temperature: 1,
+      max_tokens: 4096,
+    });
+    const { text } = response.data.choices[0];
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.json(text);
+  } else {
+    res.status(403).send('Forbidden');
+  }
 });
 
 // 回傳JSON格式
