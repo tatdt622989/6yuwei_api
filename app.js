@@ -27,7 +27,10 @@ mongoose
 const app = express();
 
 // 跨域設定
-const allowedOrigins = ['http://localhost:3000', 'https://6yuwei.com', 'http://127.0.0.1:5500/'];
+let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com'];
+if (process.env.NODE_ENV === 'development') {
+  allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:5500/'];
+}
 
 app.use(
   cors({
