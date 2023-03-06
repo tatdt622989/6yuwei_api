@@ -87,50 +87,6 @@ app.get('/chat/', async (req, res) => {
   res.json(content);
 });
 
-app.get('/live_youtuber/', async (req, res) => {
-  const { channelID } = req.query;
-
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-
-  await page.goto(`https://www.youtube.com/${channelID}/streams`);
-
-  // Set screen size
-  await page.setViewport({ width: 1080, height: 1024 });
-
-  // 判斷是否在直播中
-  const isLive = await page.$('#dismissible #overlays #text');
-
-  if (isLive !== null) {
-    const channelNameEl = await page.waitForSelector('#channel-container #text-container #text');
-    const channelName = await channelNameEl.evaluate((el) => el.textContent);
-
-    const titleEl = await page.waitForSelector('#dismissible #video-title');
-    const title = await titleEl.evaluate((el) => el.textContent);
-
-    const thumbnailEl = await page.waitForSelector(
-      '#dismissible #thumbnail img',
-    );
-    const thumbnail = await thumbnailEl.evaluate((el) => el.src);
-
-    const urlEl = await page.waitForSelector('#dismissible #thumbnail');
-    const url = await urlEl.evaluate((el) => el.href);
-
-    const data = {
-      channelName,
-      title,
-      thumbnail,
-      url,
-    };
-
-    res.json(data);
-  } else {
-    res.json({ message: 'Not live' });
-  }
-
-  await browser.close();
-});
-
 // 回傳JSON格式
 /* app.get('/json', (req, res) => {
   res.json({
