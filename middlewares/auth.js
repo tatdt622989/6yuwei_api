@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const TokenBlackList = require('../models/token_blackList');
 
-const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/'];
+const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/live_youtuber/'];
 
 async function verifyToken(req, res, next) {
   const url = req.originalUrl.split('?')[0];
