@@ -1,24 +1,14 @@
 const express = require('express');
 
 const router = express.Router({ strict: true });
-const bodyParser = require('body-parser');
-const path = require('path');
 const jwt = require('jsonwebtoken');
 // models
 const User = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
 
-const app = express();
-
-const urlencodedParser = bodyParser.urlencoded({ extended: false });
-
-app.use(express.static(path.resolve(__dirname, 'public')));
-app.use(express.static(path.resolve(__dirname, 'node_modules')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
 // 註冊
-router.post('/signup/', urlencodedParser, async (req, res) => {
+router.post('/signup/', async (req, res) => {
+  console.log(req.body);
   if (!req.body || !req.body.username || !req.body.password || !req.body.email) {
     return res.json({
       code: 400,
@@ -76,7 +66,7 @@ router.post('/signup/', urlencodedParser, async (req, res) => {
 });
 
 // 登入
-router.post('/login/', urlencodedParser, async (req, res) => {
+router.post('/login/', async (req, res) => {
   if (!req.body) {
     res.json({
       code: 400,

@@ -1,9 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-const puppeteer = require('puppeteer');
 const { Configuration, OpenAIApi } = require('openai');
 const cors = require('cors');
+const path = require('path');
 const authRouter = require('./routes/auth');
 const { verifyToken } = require('./middlewares/auth');
 
@@ -31,7 +31,7 @@ const app = express();
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com'];
 if (env === 'development') {
-  allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:5500/', 'http://localhost:8888'];
+  allowedOrigins = ['http://localhost:3000', 'http://localhost:8888', 'http://127.0.0.1:5500'];
 }
 
 app.use(
@@ -44,10 +44,16 @@ app.use(
       }
     },
     methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   }),
 );
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(express.static(path.resolve(__dirname, 'public')));
+app.use(express.static(path.resolve(__dirname, 'node_modules')));
 
 app.use(cookieParser());
 
@@ -106,6 +112,6 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-app.listen(3000, () => {
-  console.log('伺服器正在port3000上運行');
+app.listen(3001, () => {
+  console.log('伺服器正在port3001上運行');
 });
