@@ -5,6 +5,7 @@ const { Configuration, OpenAIApi } = require('openai');
 const cors = require('cors');
 const path = require('path');
 const authRouter = require('./routes/auth');
+const websitesRouter = require('./routes/websites');
 const { verifyToken } = require('./middlewares/auth');
 
 // 獲取環境變數
@@ -72,6 +73,7 @@ app.use((req, res, next) => {
 app.use(verifyToken);
 
 app.use('/', authRouter);
+app.use('/website/', websitesRouter);
 
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');

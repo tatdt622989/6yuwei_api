@@ -8,7 +8,6 @@ const TokenBlackList = require('../models/token_blackList');
 
 // 註冊
 router.post('/signup/', async (req, res) => {
-  console.log(req.body);
   if (!req.body || !req.body.username || !req.body.password || !req.body.email) {
     return res.json({
       code: 400,
@@ -62,6 +61,12 @@ router.post('/signup/', async (req, res) => {
   return res.json({
     code: 200,
     msg: '註冊成功',
+    user: {
+      // eslint-disable-next-line no-underscore-dangle
+      id: user._id,
+      username: user.username,
+      email: user.email,
+    },
   });
 });
 
@@ -96,6 +101,12 @@ router.post('/login/', async (req, res) => {
       return res.json({
         code: 200,
         msg: '登入成功',
+        user: {
+          // eslint-disable-next-line no-underscore-dangle
+          id: user._id,
+          username: user.username,
+          email: user.email,
+        },
       });
     }
   }
@@ -148,6 +159,7 @@ router.post('/loginStatus/', async (req, res) => {
   if (token) {
     await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
       if (decoded) {
+        console.log('decoded', decoded);
         req.user = decoded;
         const isTokenInBlackList = await TokenBlackList.findOne({ token });
         if (isTokenInBlackList) {
