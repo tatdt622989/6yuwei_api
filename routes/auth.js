@@ -159,7 +159,7 @@ router.post('/loginStatus/', async (req, res) => {
   if (token) {
     await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
       if (decoded) {
-        console.log('decoded', decoded);
+        // console.log('decoded', decoded);
         req.user = decoded;
         const isTokenInBlackList = await TokenBlackList.findOne({ token });
         if (isTokenInBlackList) {

@@ -73,7 +73,7 @@ app.use((req, res, next) => {
 app.use(verifyToken);
 
 app.use('/', authRouter);
-app.use('/website/', websitesRouter);
+app.use('/websites/', websitesRouter);
 
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');

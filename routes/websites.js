@@ -71,12 +71,13 @@ router.post('/upload/', upload.single('file'), async (req, res) => {
 });
 
 // 新增資料
-router.post('/add/', async (req, res) => {
+router.post('/add/', upload.any(), async (req, res) => {
   const { user } = req;
+  // console.log(req.body);
   if (!user) {
     return res.json({
       code: 403,
-      msg: '請先登入',
+      msg: 'Please login first',
     });
   }
   if (!req.body || !req.body.title) {
