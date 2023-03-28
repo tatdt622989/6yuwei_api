@@ -80,6 +80,8 @@ router.post('/admin/upload/', upload.single('file'), async (req, res) => {
   });
 });
 
+// 刪除圖片(有權限)
+
 // 新增資料(有權限)
 router.post('/admin/add/', upload.any(), async (req, res) => {
   const { user } = req;
@@ -121,14 +123,78 @@ router.get('/admin/list/', async (req, res) => {
     });
   }
   const { userId } = user;
-  if (!req.body) {
+  if (!req.query.page) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
   const page = req.query.page || 1;
-  const pageSize = req.query.pageSize || 12;
+  const pageSize = 12;
+  const skip = (page - 1) * pageSize; // 跳過幾筆
+  try {
+    const list = await Website.find({ userId })
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ _id: -1 })
+      .populate('photos')
+      .exec();
+    return res.json({
+      code: 200,
+      msg: 'Successful query',
+      list,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 400,
+      msg: 'Failed to query',
+    });
+  }
 });
+
+// 更新資料(有權限)
+router.post('/admin/update/', upload.any(), async (req, res) => {
+  const { user } = req;
+  if (!user) {
+    return res.json({
+      code: 403,
+      msg: 'Please login first',
+    });
+  }
+  if (!req.body || !req.body.id || !req.body.title) {
+    return res.json({
+      code: 400,
+      msg: 'Lack of essential information',
+    });
+  }
+  const { userId } = user;
+  const {
+    id, title, externalLink, textEditor, category,
+  } = req.body;
+  const update = {
+    title,
+    externalLink,
+    textEditor,
+    category,
+    updatedAt: Date.now(),
+  };
+  try {
+    const updatedWebsite = await Website.findByIdAndUpdate(id, update, { new: true });
+    return res.json({
+      code: 200,
+      msg: 'Successful update',
+      data: updatedWebsite,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 400,
+      msg: 'Failed to update',
+    });
+  }
+});
+
+// 刪除資料(有權限)
 
 module.exports = router;
