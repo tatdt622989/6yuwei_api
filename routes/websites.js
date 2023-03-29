@@ -35,20 +35,14 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
 
 // 上傳圖片(有權限)
-router.post('/admin/upload/', upload.single('file'), async (req, res) => {
-  const { user } = req;
-  if (!user) {
-    return res.json({
-      code: 403,
-      msg: 'Please login first',
-    });
-  }
+router.post('/admin/photo/', upload.single('file'), async (req, res) => {
   if (!req.body || !req.body.websiteId) {
     return res.json({
       code: 400,
       msg: 'Data is missing and cannot be uploaded',
     });
   }
+  const { user } = req;
   const { userId } = user;
   const { websiteId } = req.body;
   const photo = new Photos({
@@ -81,23 +75,17 @@ router.post('/admin/upload/', upload.single('file'), async (req, res) => {
 });
 
 // 刪除圖片(有權限)
+router.delete('/admin/photo/', async (req, res) => {});
 
 // 新增資料(有權限)
 router.post('/admin/add/', upload.any(), async (req, res) => {
-  const { user } = req;
-  // console.log(req.body);
-  if (!user) {
-    return res.json({
-      code: 403,
-      msg: 'Please login first',
-    });
-  }
   if (!req.body || !req.body.title) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
+  const { user } = req;
   const { userId } = user;
   const website = new Website({
     userId,
@@ -116,12 +104,6 @@ router.post('/admin/add/', upload.any(), async (req, res) => {
 // 查詢資料(有權限)
 router.get('/admin/list/', async (req, res) => {
   const { user } = req;
-  if (!user) {
-    return res.json({
-      code: 403,
-      msg: 'Please login first',
-    });
-  }
   const { userId } = user;
   if (!req.query.page) {
     return res.json({
@@ -154,21 +136,15 @@ router.get('/admin/list/', async (req, res) => {
 });
 
 // 更新資料(有權限)
-router.post('/admin/update/', upload.any(), async (req, res) => {
-  const { user } = req;
-  if (!user) {
-    return res.json({
-      code: 403,
-      msg: 'Please login first',
-    });
-  }
+router.put('/admin/update/', upload.any(), async (req, res) => {
   if (!req.body || !req.body.id || !req.body.title) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
-  const { userId } = user;
+  // const { user } = req;
+  // const { userId } = user;
   const {
     id, title, externalLink, textEditor, category,
   } = req.body;
@@ -181,6 +157,7 @@ router.post('/admin/update/', upload.any(), async (req, res) => {
   };
   try {
     const updatedWebsite = await Website.findByIdAndUpdate(id, update, { new: true });
+    console.log(id);
     return res.json({
       code: 200,
       msg: 'Successful update',
@@ -196,5 +173,28 @@ router.post('/admin/update/', upload.any(), async (req, res) => {
 });
 
 // 刪除資料(有權限)
+router.delete('/admin/delete/', async (req, res) => {
+  if (!req.body || !req.body.id) {
+    return res.json({
+      code: 400,
+      msg: 'Lack of essential information',
+    });
+  }
+  const { id } = req.body;
+  try {
+    const deletedData = await Website.findByIdAndDelete(id);
+    const { title } = deletedData;
+    return res.json({
+      code: 200,
+      msg: `Successful delete ${title}`,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 400,
+      msg: 'Failed to delete',
+    });
+  }
+});
 
 module.exports = router;

@@ -12,7 +12,7 @@ async function verifyToken(req, res, next) {
   if (!token) {
     return res.json({
       code: 403,
-      msg: '請先登入',
+      msg: 'Please login first',
     });
   }
 
@@ -27,6 +27,11 @@ async function verifyToken(req, res, next) {
         });
       }
       next();
+    } else {
+      return res.json({
+        code: 403,
+        msg: 'Please login first',
+      });
     }
     if (err) {
       if (err.name === 'TokenExpiredError') {
