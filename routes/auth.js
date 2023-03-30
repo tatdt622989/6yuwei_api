@@ -63,7 +63,7 @@ router.post('/signup/', async (req, res) => {
     msg: '註冊成功',
     user: {
       // eslint-disable-next-line no-underscore-dangle
-      id: user._id,
+      id: user.id,
       username: user.username,
       email: user.email,
     },
@@ -103,7 +103,7 @@ router.post('/login/', async (req, res) => {
         msg: '登入成功',
         user: {
           // eslint-disable-next-line no-underscore-dangle
-          id: user._id,
+          id: user.id,
           username: user.username,
           email: user.email,
         },

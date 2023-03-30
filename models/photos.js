@@ -1,11 +1,15 @@
 const mongoose = require('mongoose');
 
 const photoSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
+  permissions: {
+    read: { type: [String], enum: ['admin'], default: ['admin'] },
+    write: { type: [String], enum: ['admin'], default: ['admin'] },
+  },
   url: String,
   description: String,
-});
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
 
-const Photos = mongoose.model('Photos', photoSchema);
+const Photo = mongoose.model('Photo', photoSchema);
 
-module.exports = Photos;
+module.exports = Photo;

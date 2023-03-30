@@ -3,10 +3,11 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
-  username: String,
-  password: String,
-  email: String,
+  username: { type: String, required: true },
+  password: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   phone: String,
+  permissions: { type: String, default: 'user', enum: ['user', 'admin'] },
 });
 
 userSchema.pre('save', async function (next) {

@@ -1,12 +1,16 @@
 const mongoose = require('mongoose');
 
 const websiteSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
+  permissions: {
+    read: { type: [String], enum: ['admin'], default: ['admin'] },
+    write: { type: [String], enum: ['admin'], default: ['admin'] },
+  },
   title: String,
   externalLink: String,
-  photos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Photos' }],
+  photos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Photo' }],
   textEditor: String,
   category: String,
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 const Website = mongoose.model('Website', websiteSchema);

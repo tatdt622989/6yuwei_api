@@ -3,11 +3,12 @@ const express = require('express');
 const router = express.Router({ strict: true });
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const { requireAdmin } = require('../middlewares/auth');
 
 // models
-const User = require('../models/user');
 const Website = require('../models/website');
-const Photos = require('../models/photos');
+const Photo = require('../models/photos');
 
 // multer 設定
 const storage = multer.diskStorage({
@@ -35,27 +36,25 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
 
 // 上傳圖片(有權限)
-router.post('/admin/photo/', upload.single('file'), async (req, res) => {
+router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, res) => {
+  const { websiteId } = req.body;
+
   if (!req.body || !req.body.websiteId) {
     return res.json({
       code: 400,
       msg: 'Data is missing and cannot be uploaded',
     });
   }
-  const { user } = req;
-  const { userId } = user;
-  const { websiteId } = req.body;
-  const photo = new Photos({
-    userId,
+
+  const photo = new Photo({
     url: req.file.filename,
   });
   await photo.save();
-  // eslint-disable-next-line no-underscore-dangle
-  const photoId = photo._id;
+  const photoId = photo.id;
 
   try {
     await Website.findOneAndUpdate(
-      { _id: websiteId },
+      { id: websiteId },
       { $push: { photos: photoId } },
     ).exec();
   } catch (err) {
@@ -75,20 +74,71 @@ router.post('/admin/photo/', upload.single('file'), async (req, res) => {
 });
 
 // 刪除圖片(有權限)
-router.delete('/admin/photo/', async (req, res) => {});
+router.delete('/admin/photo/', requireAdmin, async (req, res) => {
+  if (!req.body || !req.body.websiteId) {
+    return res.json({
+      code: 400,
+      msg: 'Lack of essential information',
+    });
+  }
+
+  const { websiteId } = req.body;
+  const { photoId } = req.body;
+
+  // 刪除圖片資料
+  try {
+    const website = await Website.findById(websiteId).populate('photos').exec();
+    if (!website) {
+      return res.json({
+        code: 404,
+        msg: 'Website not found',
+      });
+    }
+
+    const photo = website.photos.find((p) => p.id.toString() === photoId);
+    if (!photo) {
+      return res.json({
+        code: 404,
+        message: 'Photo not found',
+      });
+    }
+
+    // 刪除實體圖片
+    console.log(photo.url);
+    const imgPath = path.join(__dirname, '../upload', photo.url);
+    fs.unlinkSync(imgPath);
+
+    await photo.remove();
+    website.photos.pull(photo);
+    await website.save();
+
+    return res.json({
+      code: 200,
+      msg: 'Successful delete',
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 500,
+      msg: 'Failed to delete',
+    });
+  }
+});
 
 // 新增資料(有權限)
-router.post('/admin/add/', upload.any(), async (req, res) => {
+router.post('/admin/add/', requireAdmin, upload.any(), async (req, res) => {
+  const { user } = req;
+  const { id } = user;
+
   if (!req.body || !req.body.title) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
-  const { user } = req;
-  const { userId } = user;
+
   const website = new Website({
-    userId,
+    userId: id,
     title: req.body.title,
     externalLink: req.body.externalLink,
     textEditor: req.body.textEditor,
@@ -102,9 +152,10 @@ router.post('/admin/add/', upload.any(), async (req, res) => {
 });
 
 // 查詢資料(有權限)
-router.get('/admin/list/', async (req, res) => {
+router.get('/admin/list/', requireAdmin, async (req, res) => {
   const { user } = req;
-  const { userId } = user;
+  const { id } = user;
+
   if (!req.query.page) {
     return res.json({
       code: 400,
@@ -115,10 +166,10 @@ router.get('/admin/list/', async (req, res) => {
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
-    const list = await Website.find({ userId })
+    const list = await Website.find({ userId: id })
       .skip(skip)
       .limit(pageSize)
-      .sort({ _id: -1 })
+      .sort({ id: -1 })
       .populate('photos')
       .exec();
     return res.json({
@@ -136,15 +187,13 @@ router.get('/admin/list/', async (req, res) => {
 });
 
 // 更新資料(有權限)
-router.put('/admin/update/', upload.any(), async (req, res) => {
+router.put('/admin/update/', requireAdmin, upload.any(), async (req, res) => {
   if (!req.body || !req.body.id || !req.body.title) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
-  // const { user } = req;
-  // const { userId } = user;
   const {
     id, title, externalLink, textEditor, category,
   } = req.body;
@@ -173,7 +222,7 @@ router.put('/admin/update/', upload.any(), async (req, res) => {
 });
 
 // 刪除資料(有權限)
-router.delete('/admin/delete/', async (req, res) => {
+router.delete('/admin/delete/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.id) {
     return res.json({
       code: 400,
