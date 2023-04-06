@@ -62,10 +62,10 @@ router.post('/signup/', async (req, res) => {
     code: 200,
     msg: '註冊成功',
     user: {
-      // eslint-disable-next-line no-underscore-dangle
       id: user.id,
       username: user.username,
       email: user.email,
+      permissions: user.permissions,
     },
   });
 });
@@ -102,10 +102,10 @@ router.post('/login/', async (req, res) => {
         code: 200,
         msg: '登入成功',
         user: {
-          // eslint-disable-next-line no-underscore-dangle
           id: user.id,
           username: user.username,
           email: user.email,
+          permissions: user.permissions,
         },
       });
     }

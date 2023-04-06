@@ -11,6 +11,7 @@ const websiteSchema = new mongoose.Schema({
   textEditor: String,
   category: String,
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  visible: { type: Boolean, default: true },
 }, { timestamps: true });
 
 const Website = mongoose.model('Website', websiteSchema);

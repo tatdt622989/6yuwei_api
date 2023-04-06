@@ -104,7 +104,6 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
     }
 
     // 刪除實體圖片
-    console.log(photo.url);
     const imgPath = path.join(__dirname, '../upload', photo.url);
     fs.unlinkSync(imgPath);
 
@@ -242,6 +241,38 @@ router.delete('/admin/delete/', requireAdmin, async (req, res) => {
     return res.json({
       code: 400,
       msg: 'Failed to delete',
+    });
+  }
+});
+
+// 查詢資料(無權限)
+router.get('/list/', async (req, res) => {
+  if (!req.query.page) {
+    return res.json({
+      code: 400,
+      msg: 'Lack of essential information',
+    });
+  }
+  const page = req.query.page || 1;
+  const pageSize = 12;
+  const skip = (page - 1) * pageSize; // 跳過幾筆
+  try {
+    const list = await Website.find({ visible: true })
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ id: -1 })
+      .populate('photos')
+      .exec();
+    return res.json({
+      code: 200,
+      msg: 'Successful query',
+      list,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 400,
+      msg: 'Failed to query',
     });
   }
 });

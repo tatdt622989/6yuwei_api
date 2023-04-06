@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   phone: String,
   permissions: { type: String, default: 'user', enum: ['user', 'admin'] },
-});
+}, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
   const user = this; // document
@@ -29,16 +29,14 @@ userSchema.methods.comparePassword = async function (password) {
 userSchema.methods.generateAuthToken = function () {
   const user = this; // document
 
-  // eslint-disable-next-line no-underscore-dangle
-  if (!user._id) {
+  if (!user.id) {
     throw new Error('User must be saved before generating an auth token');
   }
 
   // jwt token
   const token = jwt.sign(
     {
-      // eslint-disable-next-line no-underscore-dangle
-      userId: user._id,
+      userId: user.id,
     },
     process.env.SECRET_KEY,
     { expiresIn: process.env.TOKEN_EXPIRES_IN },

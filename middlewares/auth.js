@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const TokenBlackList = require('../models/token_blackList');
 const User = require('../models/user');
 
-const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/test/'];
+const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/test/', '/websites/list/'];
 
 async function verifyToken(req, res, next) {
   const url = req.originalUrl.split('?')[0];
@@ -70,9 +70,15 @@ async function verifyToken(req, res, next) {
   return null;
 }
 
+/**
+ * If the user exists and the user's permissions include 'admin',
+ * then call next(), otherwise return a 401 error
+ * @param req - The request object
+ * @param res - the response object
+ * @param next - a function that will be called when the middleware is complete.
+ */
 const requireAdmin = (req, res, next) => {
   const { user } = req;
-  console.log('user', user);
 
   if (user && user.permissions.includes('admin')) {
     next();
@@ -81,6 +87,13 @@ const requireAdmin = (req, res, next) => {
   }
 };
 
+/**
+ * If the user exists and has the 'user' permission,
+ * then call the next function. Otherwise, return a 401 error
+ * @param req - The request object
+ * @param res - The response object.
+ * @param next - a function that will be called when the middleware is complete.
+ */
 const requireUser = (req, res, next) => {
   const { user } = req;
 
