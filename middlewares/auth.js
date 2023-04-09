@@ -2,11 +2,11 @@ const jwt = require('jsonwebtoken');
 const TokenBlackList = require('../models/token_blackList');
 const User = require('../models/user');
 
-const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/test/', '/websites/list/'];
+const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/test/', '/websites/list/', '/admin/uploads/'];
 
 async function verifyToken(req, res, next) {
   const url = req.originalUrl.split('?')[0];
-  if (publicRoutes.includes(url)) {
+  if (publicRoutes.some((route) => url.startsWith(route))) {
     return next();
   }
   const token = req.cookies.access_token;
@@ -30,7 +30,6 @@ async function verifyToken(req, res, next) {
       // get user data from db
       try {
         const user = await User.findById(decoded.userId);
-        console.log(user);
         if (!user) {
           return res.json({
             code: 403,

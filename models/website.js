@@ -6,6 +6,7 @@ const websiteSchema = new mongoose.Schema({
     write: { type: [String], enum: ['admin'], default: ['admin'] },
   },
   title: String,
+  description: String,
   externalLink: String,
   photos: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Photo' }],
   textEditor: String,

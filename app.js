@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
+const adminRouter = require('./routes/admin');
 const { verifyToken } = require('./middlewares/auth');
 
 // 獲取環境變數
@@ -34,7 +35,6 @@ let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com'];
 if (env === 'development') {
   allowedOrigins = ['http://localhost:3000', 'http://localhost:8888', 'http://127.0.0.1:5500'];
 }
-
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -45,7 +45,7 @@ app.use(
       }
     },
     methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
     credentials: true,
   }),
 );
@@ -72,13 +72,15 @@ app.use((req, res, next) => {
 // 驗證token
 app.use(verifyToken);
 
+// 路由
 app.use('/', authRouter);
 app.use('/websites/', websitesRouter);
+app.use('/admin/', adminRouter);
 
+// other routes..
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
 });
-
 app.get('/chat/', async (req, res) => {
   const { prompt } = req.query;
   const configuration = new Configuration({

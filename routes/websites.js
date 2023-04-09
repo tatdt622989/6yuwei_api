@@ -11,9 +11,9 @@ const Website = require('../models/website');
 const Photo = require('../models/photos');
 
 // multer 設定
-const storage = multer.diskStorage({
+const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../upload'));
+    cb(null, path.join(__dirname, '../upload/admin/img/'));
   },
   filename: (req, file, cb) => {
     cb(null, `${Date.now()}-${file.originalname}`);
@@ -33,7 +33,7 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
+const upload = multer({ adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
 
 // 上傳圖片(有權限)
 router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, res) => {
@@ -165,6 +165,7 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
+    const total = await Website.countDocuments({ userId: id });
     const list = await Website.find({ userId: id })
       .skip(skip)
       .limit(pageSize)
@@ -175,6 +176,10 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
       code: 200,
       msg: 'Successful query',
       list,
+      pageSize,
+      currentPage: page,
+      total,
+      totalPage: Math.ceil(total / pageSize),
     });
   } catch (err) {
     console.log(err);
@@ -267,6 +272,9 @@ router.get('/list/', async (req, res) => {
       code: 200,
       msg: 'Successful query',
       list,
+      pageSize,
+      currentPage: page,
+      totalPage: Math.ceil(list.length / pageSize),
     });
   } catch (err) {
     console.log(err);
