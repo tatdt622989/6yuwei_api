@@ -6,6 +6,9 @@ const photoSchema = new mongoose.Schema({
     write: { type: [String], enum: ['admin'], default: ['admin'] },
   },
   url: String,
+  size: Number,
+  mimetype: String,
+  ext: String,
   description: String,
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });

@@ -48,6 +48,9 @@ router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, re
 
   const photo = new Photo({
     url: req.file.filename,
+    size: req.file.size,
+    mimetype: req.file.mimetype,
+    ext: path.extname(req.file.filename),
   });
   await photo.save();
   const photoId = photo.id;
@@ -142,11 +145,13 @@ router.post('/admin/add/', requireAdmin, upload.any(), async (req, res) => {
     externalLink: req.body.externalLink,
     textEditor: req.body.textEditor,
     category: req.body.category,
+    description: req.body.description,
   });
   await website.save();
   return res.json({
     code: 200,
-    msg: '新增成功',
+    msg: 'Successful add',
+    data: website,
   });
 });
 
@@ -210,7 +215,6 @@ router.put('/admin/update/', requireAdmin, upload.any(), async (req, res) => {
   };
   try {
     const updatedWebsite = await Website.findByIdAndUpdate(id, update, { new: true });
-    console.log(id);
     return res.json({
       code: 200,
       msg: 'Successful update',
