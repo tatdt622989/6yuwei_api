@@ -13,10 +13,23 @@ const Photo = require('../models/photos');
 // multer 設定
 const adminStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../upload/admin/img/'));
+    try {
+      const dest = path.join(__dirname, '../uploads/admin/img');
+      cb(null, dest);
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    try {
+      const filename = `${Date.now()}`;
+      const ext = path.extname(file.originalname);
+      cb(null, filename + ext);
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
   },
 });
 
@@ -33,16 +46,32 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({ adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
+const upload = multer({ storage: adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
 
 // 上傳圖片(有權限)
 router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, res) => {
   const { websiteId } = req.body;
 
-  if (!req.body || !req.body.websiteId) {
+  if (!req.body || !req.body.websiteId || !req.file) {
     return res.json({
       code: 400,
       msg: 'Data is missing and cannot be uploaded',
+    });
+  }
+
+  // 檢查網站是否存在
+  try {
+    const website = await Website.findById(websiteId).exec();
+    if (!website) {
+      return res.json({
+        code: 404,
+        msg: 'Website not found',
+      });
+    }
+  } catch (err) {
+    return res.json({
+      code: 400,
+      msg: 'Failed to upload',
     });
   }
 
@@ -54,6 +83,7 @@ router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, re
   });
   await photo.save();
   const photoId = photo.id;
+  console.log(photo);
 
   try {
     await Website.findOneAndUpdate(
@@ -128,7 +158,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 });
 
 // 新增資料(有權限)
-router.post('/admin/add/', requireAdmin, upload.any(), async (req, res) => {
+router.post('/admin/add/', requireAdmin, multer().any(), async (req, res) => {
   const { user } = req;
   const { id } = user;
 
@@ -196,7 +226,7 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
 });
 
 // 更新資料(有權限)
-router.put('/admin/update/', requireAdmin, upload.any(), async (req, res) => {
+router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
   if (!req.body || !req.body.id || !req.body.title) {
     return res.json({
       code: 400,
