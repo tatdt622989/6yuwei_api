@@ -23,9 +23,25 @@ const adminStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     try {
-      const filename = `${Date.now()}`;
+      const dest = path.join(__dirname, '../uploads/admin/img');
       const ext = path.extname(file.originalname);
-      cb(null, filename + ext);
+      const basename = path.basename(file.originalname, ext);
+      let i = 0;
+      let filename = file.originalname;
+      filename = Buffer.from(filename, 'latin1').toString('utf8');
+      const generateFilename = () => {
+        fs.access(path.join(dest, filename), (err) => {
+          if (err) {
+            cb(null, filename);
+          } else {
+            i += 1;
+            filename = `${basename}_${i}${ext}`;
+            filename = Buffer.from(filename, 'latin1').toString('utf8');
+            generateFilename();
+          }
+        });
+      };
+      generateFilename();
     } catch (err) {
       console.error(err);
       cb(err, null);
@@ -46,20 +62,20 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-const upload = multer({ storage: adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 } });
+const upload = multer({
+  storage: adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 }, encoding: 'utf-8',
+});
 
 // 上傳圖片(有權限)
 router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, res) => {
   const { websiteId } = req.body;
-
-  if (!req.body || !req.body.websiteId || !req.file) {
+  if (!req.body || !websiteId || !req.file) {
     return res.json({
       code: 400,
       msg: 'Data is missing and cannot be uploaded',
     });
   }
 
-  // 檢查網站是否存在
   try {
     const website = await Website.findById(websiteId).exec();
     if (!website) {
@@ -68,47 +84,43 @@ router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, re
         msg: 'Website not found',
       });
     }
+    if (website.photos.length >= 5) {
+      return res.json({
+        code: 400,
+        msg: 'The number of photos cannot exceed 5',
+      });
+    }
+
+    const photo = new Photo({
+      url: req.file.filename,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      ext: path.extname(req.file.filename),
+    });
+    await photo.save();
+    const photoId = photo.id;
+
+    website.photos.push(photoId);
+    await website.save();
+
+    return res.json({
+      code: 200,
+      msg: 'Successful upload',
+      websiteId,
+      url: req.file.filename,
+      data: photo,
+    });
   } catch (err) {
     return res.json({
       code: 400,
       msg: 'Failed to upload',
     });
   }
-
-  const photo = new Photo({
-    url: req.file.filename,
-    size: req.file.size,
-    mimetype: req.file.mimetype,
-    ext: path.extname(req.file.filename),
-  });
-  await photo.save();
-  const photoId = photo.id;
-  console.log(photo);
-
-  try {
-    await Website.findOneAndUpdate(
-      { id: websiteId },
-      { $push: { photos: photoId } },
-    ).exec();
-  } catch (err) {
-    console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to upload',
-    });
-  }
-
-  return res.json({
-    code: 200,
-    msg: 'Successful upload',
-    websiteId,
-    url: req.file.filename,
-  });
 });
 
 // 刪除圖片(有權限)
 router.delete('/admin/photo/', requireAdmin, async (req, res) => {
-  if (!req.body || !req.body.websiteId) {
+  if (!req.body || !req.body.websiteId || !req.body.photoId) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
@@ -137,7 +149,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
     }
 
     // 刪除實體圖片
-    const imgPath = path.join(__dirname, '../upload', photo.url);
+    const imgPath = path.join(__dirname, '../uploads/admin/img', photo.url);
     fs.unlinkSync(imgPath);
 
     await photo.remove();
@@ -146,6 +158,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 
     return res.json({
       code: 200,
+      data: website,
       msg: 'Successful delete',
     });
   } catch (err) {
