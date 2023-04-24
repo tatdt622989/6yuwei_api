@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 const express = require('express');
 
 const router = express.Router({ strict: true });
@@ -63,76 +64,84 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: adminStorage, fileFilter, limits: { fileSize: 1024 * 1024 * 5 }, encoding: 'utf-8',
+  storage: adminStorage,
+  fileFilter,
+  limits: { fileSize: 1024 * 1024 * 5 },
+  encoding: 'utf-8',
 });
 
 // 上傳圖片(有權限)
-router.post('/admin/photo/', requireAdmin, upload.single('file'), async (req, res) => {
-  const { websiteId } = req.body;
-  if (!req.body || !websiteId || !req.file) {
-    return res.json({
-      code: 400,
-      msg: 'Data is missing and cannot be uploaded',
-    });
-  }
-
-  try {
-    const website = await Website.findById(websiteId).exec();
-    if (!website) {
-      return res.json({
-        code: 404,
-        msg: 'Website not found',
-      });
-    }
-    if (website.photos.length >= 5) {
+router.post(
+  '/admin/photo/',
+  requireAdmin,
+  upload.single('file'),
+  async (req, res) => {
+    const { unitId } = req.body;
+    if (!req.body || !unitId || !req.file) {
       return res.json({
         code: 400,
-        msg: 'The number of photos cannot exceed 5',
+        msg: 'Data is missing and cannot be uploaded',
       });
     }
 
-    const photo = new Photo({
-      url: req.file.filename,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      ext: path.extname(req.file.filename),
-    });
-    await photo.save();
-    const photoId = photo.id;
+    try {
+      const website = await Website.findById(unitId).exec();
+      if (!website) {
+        return res.json({
+          code: 404,
+          msg: 'Website not found',
+        });
+      }
+      if (website.photos.length >= 5) {
+        return res.json({
+          code: 400,
+          msg: 'The number of photos cannot exceed 5',
+        });
+      }
 
-    website.photos.push(photoId);
-    await website.save();
+      const photo = new Photo({
+        url: req.file.filename,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        ext: path.extname(req.file.filename),
+      });
+      await photo.save();
+      const photoId = photo.id;
 
-    return res.json({
-      code: 200,
-      msg: 'Successful upload',
-      websiteId,
-      url: req.file.filename,
-      data: photo,
-    });
-  } catch (err) {
-    return res.json({
-      code: 400,
-      msg: 'Failed to upload',
-    });
-  }
-});
+      website.photos.push(photoId);
+      await website.save();
+
+      return res.json({
+        code: 200,
+        msg: 'Successful upload',
+        unitId,
+        url: req.file.filename,
+        data: photo,
+      });
+    } catch (err) {
+      return res.json({
+        code: 400,
+        msg: 'Failed to upload',
+      });
+    }
+  },
+);
 
 // 刪除圖片(有權限)
 router.delete('/admin/photo/', requireAdmin, async (req, res) => {
-  if (!req.body || !req.body.websiteId || !req.body.photoId) {
+  if (!req.body || !req.body.unitId || !req.body.photoId) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
 
-  const { websiteId } = req.body;
+  const { unitId } = req.body;
   const { photoId } = req.body;
 
   // 刪除圖片資料
   try {
-    const website = await Website.findById(websiteId).populate('photos').exec();
+    const website = await Website.findById(unitId).populate('photos').exec();
     if (!website) {
       return res.json({
         code: 404,
@@ -240,14 +249,14 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
 
 // 更新資料(有權限)
 router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
-  if (!req.body || !req.body.id || !req.body.title) {
+  if (!req.body || !req.body._id || !req.body.title) {
     return res.json({
       code: 400,
       msg: 'Lack of essential information',
     });
   }
   const {
-    id, title, externalLink, textEditor, category,
+    _id, title, externalLink, textEditor, category,
   } = req.body;
   const update = {
     title,
@@ -257,7 +266,9 @@ router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
     updatedAt: Date.now(),
   };
   try {
-    const updatedWebsite = await Website.findByIdAndUpdate(id, update, { new: true });
+    const updatedWebsite = await Website.findByIdAndUpdate(_id, update, {
+      new: true,
+    }).populate('photos');
     return res.json({
       code: 200,
       msg: 'Successful update',
@@ -322,6 +333,24 @@ router.get('/list/', async (req, res) => {
       pageSize,
       currentPage: page,
       totalPage: Math.ceil(list.length / pageSize),
+    });
+  } catch (err) {
+    console.log(err);
+    return res.json({
+      code: 400,
+      msg: 'Failed to query',
+    });
+  }
+});
+
+// 取得類別
+router.get('/admin/category/', requireAdmin, async (req, res) => {
+  try {
+    const category = await Website.find().distinct('category');
+    return res.json({
+      code: 200,
+      msg: 'Successful query',
+      category,
     });
   } catch (err) {
     console.log(err);
