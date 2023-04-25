@@ -78,25 +78,16 @@ router.post(
   async (req, res) => {
     const { unitId } = req.body;
     if (!req.body || !unitId || !req.file) {
-      return res.json({
-        code: 400,
-        msg: 'Data is missing and cannot be uploaded',
-      });
+      return res.status(400).send('Lack of essential information');
     }
 
     try {
       const website = await Website.findById(unitId).exec();
       if (!website) {
-        return res.json({
-          code: 404,
-          msg: 'Website not found',
-        });
+        return res.status(404).send('Website not found');
       }
       if (website.photos.length >= 5) {
-        return res.json({
-          code: 400,
-          msg: 'The number of photos cannot exceed 5',
-        });
+        return res.status(400).send('The number of photos cannot exceed 5');
       }
 
       const photo = new Photo({
@@ -112,17 +103,13 @@ router.post(
       await website.save();
 
       return res.json({
-        code: 200,
         msg: 'Successful upload',
         unitId,
         url: req.file.filename,
         data: photo,
       });
     } catch (err) {
-      return res.json({
-        code: 400,
-        msg: 'Failed to upload',
-      });
+      return res.status(500).send('Failed to upload');
     }
   },
 );
@@ -130,10 +117,7 @@ router.post(
 // 刪除圖片(有權限)
 router.delete('/admin/photo/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.unitId || !req.body.photoId) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+    return res.status(400).send('Lack of essential information');
   }
 
   const { unitId } = req.body;
@@ -141,20 +125,21 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 
   // 刪除圖片資料
   try {
-    const website = await Website.findById(unitId).populate('photos').exec();
+    const website = await Website.findById(unitId)
+      .populate({
+        path: 'photos',
+        options: {
+          sort: { createdAt: 'desc' },
+        },
+      })
+      .exec();
     if (!website) {
-      return res.json({
-        code: 404,
-        msg: 'Website not found',
-      });
+      return res.status(404).send('Website not found');
     }
 
     const photo = website.photos.find((p) => p.id.toString() === photoId);
     if (!photo) {
-      return res.json({
-        code: 404,
-        message: 'Photo not found',
-      });
+      return res.status(404).send('Photo not found');
     }
 
     // 刪除實體圖片
@@ -166,16 +151,12 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
     await website.save();
 
     return res.json({
-      code: 200,
       data: website,
       msg: 'Successful delete',
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 500,
-      msg: 'Failed to delete',
-    });
+    return res.status(500).send('Failed to delete');
   }
 });
 
@@ -185,10 +166,7 @@ router.post('/admin/add/', requireAdmin, multer().any(), async (req, res) => {
   const { id } = user;
 
   if (!req.body || !req.body.title) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+    return res.status(400).send('Lack of essential information');
   }
 
   const website = new Website({
@@ -201,7 +179,6 @@ router.post('/admin/add/', requireAdmin, multer().any(), async (req, res) => {
   });
   await website.save();
   return res.json({
-    code: 200,
     msg: 'Successful add',
     data: website,
   });
@@ -213,10 +190,7 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   const { id } = user;
 
   if (!req.query.page) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+    return res.status(400).send('Lack of essential information');
   }
   const page = req.query.page || 1;
   const pageSize = 12;
@@ -226,11 +200,15 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
     const list = await Website.find({ userId: id })
       .skip(skip)
       .limit(pageSize)
-      .sort({ id: -1 })
-      .populate('photos')
+      .sort({ createdAt: 'desc' })
+      .populate({
+        path: 'photos',
+        options: {
+          sort: { createdAt: 'desc' },
+        },
+      })
       .exec();
     return res.json({
-      code: 200,
       msg: 'Successful query',
       list,
       pageSize,
@@ -240,20 +218,14 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to query',
-    });
+    return res.status(500).send('Failed to query');
   }
 });
 
 // 更新資料(有權限)
 router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
   if (!req.body || !req.body._id || !req.body.title) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+    return res.status(400).send('Lack of essential information');
   }
   const {
     _id, title, externalLink, textEditor, category,
@@ -270,51 +242,42 @@ router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
       new: true,
     }).populate('photos');
     return res.json({
-      code: 200,
       msg: 'Successful update',
       data: updatedWebsite,
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to update',
-    });
+    return res.status(500).send('Failed to update');
   }
 });
 
 // 刪除資料(有權限)
 router.delete('/admin/delete/', requireAdmin, async (req, res) => {
-  if (!req.body || !req.body.id) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+  if (!req.body || !req.body.ids) {
+    return res.status(400).send('Lack of essential information');
   }
-  const { id } = req.body;
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids)) {
+    return res.status(400).send('ids must be an array');
+  }
+
   try {
-    const deletedData = await Website.findByIdAndDelete(id);
+    const deletedData = await Website.deleteMany({ _id: { $in: ids } });
     const { title } = deletedData;
     return res.json({
-      code: 200,
       msg: `Successful delete ${title}`,
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to delete',
-    });
+    return res.status(500).send('Failed to delete');
   }
 });
 
 // 查詢資料(無權限)
 router.get('/list/', async (req, res) => {
   if (!req.query.page) {
-    return res.json({
-      code: 400,
-      msg: 'Lack of essential information',
-    });
+    return res.status(400).send('Lack of essential information');
   }
   const page = req.query.page || 1;
   const pageSize = 12;
@@ -327,7 +290,6 @@ router.get('/list/', async (req, res) => {
       .populate('photos')
       .exec();
     return res.json({
-      code: 200,
       msg: 'Successful query',
       list,
       pageSize,
@@ -336,10 +298,7 @@ router.get('/list/', async (req, res) => {
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to query',
-    });
+    return res.status(500).send('Failed to query');
   }
 });
 
@@ -348,16 +307,12 @@ router.get('/admin/category/', requireAdmin, async (req, res) => {
   try {
     const category = await Website.find().distinct('category');
     return res.json({
-      code: 200,
       msg: 'Successful query',
       category,
     });
   } catch (err) {
     console.log(err);
-    return res.json({
-      code: 400,
-      msg: 'Failed to query',
-    });
+    return res.status(500).send('Failed to query');
   }
 });
 

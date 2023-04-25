@@ -9,10 +9,7 @@ const TokenBlackList = require('../models/token_blackList');
 // 註冊
 router.post('/signup/', async (req, res) => {
   if (!req.body || !req.body.username || !req.body.password || !req.body.email) {
-    return res.json({
-      code: 400,
-      msg: 'Please fill in the complete information',
-    });
+    return res.status(400).send('Please fill in the complete information');
   }
 
   const {
@@ -23,10 +20,7 @@ router.post('/signup/', async (req, res) => {
 
   const existUser = await User.findOne({ email });
   if (existUser) {
-    return res.json({
-      code: 400,
-      msg: 'User already exists',
-    });
+    return res.status(400).send('User already exists');
   }
 
   // 儲存用戶
@@ -40,10 +34,7 @@ router.post('/signup/', async (req, res) => {
   await user
     .save()
     .catch((err) => {
-      res.json({
-        code: 500,
-        msg: `Registration Failure-${err}`,
-      });
+      res.status(500).send(`Registration Failure-${err}`);
     });
 
   // jwt token
@@ -57,7 +48,6 @@ router.post('/signup/', async (req, res) => {
     });
 
   return res.json({
-    code: 200,
     msg: 'Register successfully',
     user: {
       id: user.id,
@@ -73,10 +63,7 @@ router.post('/login/', async (req, res) => {
   const { email, password } = req.body;
 
   if (!req.body || !email || !password) {
-    return res.json({
-      code: 400,
-      msg: 'Please fill in the complete information',
-    });
+    return res.status(400).send('Please fill in the complete information');
   }
 
   // 尋找用戶
@@ -98,7 +85,6 @@ router.post('/login/', async (req, res) => {
         });
 
       return res.json({
-        code: 200,
         msg: 'Login successful',
         user: {
           id: user.id,
@@ -108,16 +94,10 @@ router.post('/login/', async (req, res) => {
         },
       });
     }
-    return res.json({
-      code: 400,
-      msg: 'Password Error',
-    });
+    return res.status(400).send('Incorrect password');
   }
 
-  return res.json({
-    code: 400,
-    msg: 'User does not exist',
-  });
+  return res.status(400).send('User does not exist');
 });
 
 // 登出
@@ -136,24 +116,17 @@ router.post('/logout/', async (req, res) => {
             issuedAt: new Date(decoded.iat * 1000),
           });
           await tokenBlackList.save().catch((dataErr) => {
-            res.json({
-              code: 500,
-              msg: `Failure to log out-${dataErr}`,
-            });
+            res.status(500).send(`Logout Failure-${dataErr}`);
           });
         }
       }
       res.clearCookie('access_token');
     });
     return res.json({
-      code: 200,
       msg: 'Successful logout',
     });
   }
-  return res.json({
-    code: 400,
-    msg: 'Not in login status',
-  });
+  return res.status(400).send('Please login first');
 });
 
 // 確認登入狀態
@@ -166,15 +139,11 @@ router.get('/loginStatus/', async (req, res) => {
         req.user = decoded;
         const isTokenInBlackList = await TokenBlackList.findOne({ token });
         if (isTokenInBlackList) {
-          return res.json({
-            code: 403,
-            msg: 'Token is no longer valid, please login again',
-          });
+          return res.status(403).send('Login timeout, please login again');
         }
         // 尋找用戶
         const user = await User.findById(decoded.userId);
         return res.json({
-          code: 200,
           msg: 'Logged in',
           user: {
             id: user.id,
@@ -186,15 +155,9 @@ router.get('/loginStatus/', async (req, res) => {
       }
       if (err) {
         if (err.name === 'TokenExpiredError') {
-          return res.json({
-            code: 403,
-            msg: 'Login timeout, please login again',
-          });
+          return res.status(403).send('Login timeout, please login again');
         }
-        return res.json({
-          code: 403,
-          msg: 'Please login first',
-        });
+        return res.status(403).send('Please login first');
       }
 
       return null;

@@ -11,10 +11,7 @@ async function verifyToken(req, res, next) {
   }
   const token = req.cookies.access_token;
   if (!token) {
-    return res.json({
-      code: 403,
-      msg: 'Please login first',
-    });
+    return res.status(403).send('Please login first');
   }
 
   await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
@@ -22,45 +19,27 @@ async function verifyToken(req, res, next) {
       req.user = decoded;
       const isTokenInBlackList = await TokenBlackList.findOne({ token });
       if (isTokenInBlackList) {
-        return res.json({
-          code: 403,
-          msg: 'Token已失效，請重新登入',
-        });
+        return res.status(403).send('Login timeout, please login again');
       }
       // get user data from db
       try {
         const user = await User.findById(decoded.userId);
         if (!user) {
-          return res.json({
-            code: 403,
-            msg: 'User not found',
-          });
+          return res.status(403).send('User not found');
         }
         req.user = user;
         next();
       } catch (error) {
-        return res.json({
-          code: 500,
-          msg: 'db error',
-        });
+        return res.status(500).send('db error');
       }
     } else {
-      return res.json({
-        code: 403,
-        msg: 'Please login first',
-      });
+      return res.status(403).send('Please login first');
     }
     if (err) {
       if (err.name === 'TokenExpiredError') {
-        return res.json({
-          code: 403,
-          msg: '登入逾時，請重新登入',
-        });
+        return res.status(403).send('Login timeout, please login again');
       }
-      return res.json({
-        code: 403,
-        msg: '請先登入',
-      });
+      return res.status(403).send('Please login first');
     }
 
     return null;
