@@ -66,7 +66,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: adminStorage,
   fileFilter,
-  limits: { fileSize: 1024 * 1024 * 5 },
+  limits: { fileSize: 1024 * 1024 * 10 },
   encoding: 'utf-8',
 });
 
@@ -251,8 +251,8 @@ router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
   }
 });
 
-// 刪除資料(有權限)
-router.delete('/admin/delete/', requireAdmin, async (req, res) => {
+// 刪除多筆資料(有權限)
+router.post('/admin/delete/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.ids) {
     return res.status(400).send('Lack of essential information');
   }
@@ -264,6 +264,22 @@ router.delete('/admin/delete/', requireAdmin, async (req, res) => {
 
   try {
     const deletedData = await Website.deleteMany({ _id: { $in: ids } });
+    console.log(deletedData);
+    const { title } = deletedData;
+    return res.json({
+      msg: `Successful delete ${title}`,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to delete');
+  }
+});
+
+// 刪除單筆資料(有權限)
+router.delete('/admin/delete/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedData = await Website.findByIdAndDelete(id);
     const { title } = deletedData;
     return res.json({
       msg: `Successful delete ${title}`,
