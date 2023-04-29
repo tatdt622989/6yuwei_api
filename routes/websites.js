@@ -161,21 +161,19 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 });
 
 // 新增資料(有權限)
-router.post('/admin/add/', requireAdmin, multer().any(), async (req, res) => {
+router.post('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
   const { user } = req;
   const { id } = user;
 
-  if (!req.body || !req.body.title) {
+  if (!req.body || !req.body.data || !req.body.data.title) {
     return res.status(400).send('Lack of essential information');
   }
 
+  const { data } = req.body;
+
   const website = new Website({
     userId: id,
-    title: req.body.title,
-    externalLink: req.body.externalLink,
-    textEditor: req.body.textEditor,
-    category: req.body.category,
-    description: req.body.description,
+    ...data,
   });
   await website.save();
   return res.json({
@@ -186,9 +184,6 @@ router.post('/admin/add/', requireAdmin, multer().any(), async (req, res) => {
 
 // 查詢資料(有權限)
 router.get('/admin/list/', requireAdmin, async (req, res) => {
-  const { user } = req;
-  const { id } = user;
-
   if (!req.query.page) {
     return res.status(400).send('Lack of essential information');
   }
@@ -196,8 +191,8 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
-    const total = await Website.countDocuments({ userId: id });
-    const list = await Website.find({ userId: id })
+    const total = await Website.countDocuments();
+    const list = await Website.find()
       .skip(skip)
       .limit(pageSize)
       .sort({ createdAt: 'desc' })
@@ -223,22 +218,14 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
 });
 
 // 更新資料(有權限)
-router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
-  if (!req.body || !req.body._id || !req.body.title) {
+router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
+  const { _id } = req.body;
+  const { data } = req.body;
+  if (!req.body || !data || !_id) {
     return res.status(400).send('Lack of essential information');
   }
-  const {
-    _id, title, externalLink, textEditor, category,
-  } = req.body;
-  const update = {
-    title,
-    externalLink,
-    textEditor,
-    category,
-    updatedAt: Date.now(),
-  };
   try {
-    const updatedWebsite = await Website.findByIdAndUpdate(_id, update, {
+    const updatedWebsite = await Website.findByIdAndUpdate(_id, data, {
       new: true,
     }).populate('photos');
     return res.json({
@@ -252,7 +239,7 @@ router.put('/admin/update/', requireAdmin, multer().any(), async (req, res) => {
 });
 
 // 刪除多筆資料(有權限)
-router.post('/admin/delete/', requireAdmin, async (req, res) => {
+router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.ids) {
     return res.status(400).send('Lack of essential information');
   }
@@ -276,7 +263,7 @@ router.post('/admin/delete/', requireAdmin, async (req, res) => {
 });
 
 // 刪除單筆資料(有權限)
-router.delete('/admin/delete/:id', requireAdmin, async (req, res) => {
+router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const deletedData = await Website.findByIdAndDelete(id);
@@ -299,6 +286,7 @@ router.get('/list/', async (req, res) => {
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
+    const total = await Website.countDocuments();
     const list = await Website.find({ visible: true })
       .skip(skip)
       .limit(pageSize)
@@ -310,6 +298,7 @@ router.get('/list/', async (req, res) => {
       list,
       pageSize,
       currentPage: page,
+      total,
       totalPage: Math.ceil(list.length / pageSize),
     });
   } catch (err) {
