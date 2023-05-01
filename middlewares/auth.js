@@ -2,11 +2,23 @@ const jwt = require('jsonwebtoken');
 const TokenBlackList = require('../models/token_blackList');
 const User = require('../models/user');
 
-const publicRoutes = ['/login/', '/signup/', '/logout/', '/chat/', '/test/', '/websites/list/', '/admin/uploads/'];
+const publicRoutes = [
+  '/login/',
+  '/signup/',
+  '/logout/',
+  '/chat/',
+  '/test/',
+  '/websites/[0-9a-fA-F]{24}/',
+  '/websites/list/',
+  '/admin/uploads/.*/',
+];
 
 async function verifyToken(req, res, next) {
-  const url = req.originalUrl.split('?')[0];
-  if (publicRoutes.some((route) => url.startsWith(route))) {
+  const url = req.path;
+  if (publicRoutes.some((route) => {
+    const reg = new RegExp(`^${route}$`);
+    return reg.test(url);
+  })) {
     return next();
   }
   const token = req.cookies.access_token;

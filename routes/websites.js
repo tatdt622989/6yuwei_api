@@ -307,6 +307,23 @@ router.get('/list/', async (req, res) => {
   }
 });
 
+// 查詢單筆資料(無權限)
+router.get('/:id/', async (req, res) => {
+  const { id } = req.params;
+  console.log(id);
+  if (!id) return res.status(400).send('Lack of essential information');
+  try {
+    const website = await Website.findById(id).populate('photos');
+    return res.json({
+      msg: 'Successful query',
+      data: website,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to query');
+  }
+});
+
 // 取得類別
 router.get('/admin/category/', requireAdmin, async (req, res) => {
   try {
