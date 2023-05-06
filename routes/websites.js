@@ -251,7 +251,6 @@ router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
 
   try {
     const deletedData = await Website.deleteMany({ _id: { $in: ids } });
-    console.log(deletedData);
     const { title } = deletedData;
     return res.json({
       msg: `Successful delete ${title}`,
@@ -290,8 +289,13 @@ router.get('/list/', async (req, res) => {
     const list = await Website.find({ visible: true })
       .skip(skip)
       .limit(pageSize)
-      .sort({ id: -1 })
-      .populate('photos')
+      .sort({ createdAt: 'desc' })
+      .populate({
+        path: 'photos',
+        options: {
+          sort: { createdAt: 'desc' },
+        },
+      })
       .exec();
     return res.json({
       msg: 'Successful query',
@@ -310,7 +314,6 @@ router.get('/list/', async (req, res) => {
 // 查詢單筆資料(無權限)
 router.get('/:id/', async (req, res) => {
   const { id } = req.params;
-  console.log(id);
   if (!id) return res.status(400).send('Lack of essential information');
   try {
     const website = await Website.findById(id).populate('photos');

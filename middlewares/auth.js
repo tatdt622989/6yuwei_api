@@ -11,14 +11,17 @@ const publicRoutes = [
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/list/',
   '/admin/uploads/.*/',
+  '/contact/',
 ];
 
 async function verifyToken(req, res, next) {
   const url = req.path;
-  if (publicRoutes.some((route) => {
-    const reg = new RegExp(`^${route}$`);
-    return reg.test(url);
-  })) {
+  if (
+    publicRoutes.some((route) => {
+      const reg = new RegExp(`^${route}$`);
+      return reg.test(url);
+    })
+  ) {
     return next();
   }
   const token = req.cookies.access_token;
@@ -94,4 +97,8 @@ const requireUser = (req, res, next) => {
   }
 };
 
-module.exports = { verifyToken, requireAdmin, requireUser };
+module.exports = {
+  verifyToken,
+  requireAdmin,
+  requireUser,
+};

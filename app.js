@@ -7,6 +7,7 @@ const path = require('path');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
 const adminRouter = require('./routes/admin');
+const contactRouter = require('./routes/contact');
 const { verifyToken } = require('./middlewares/auth');
 
 // 獲取環境變數
@@ -76,6 +77,7 @@ app.use(verifyToken);
 app.use('/', authRouter);
 app.use('/websites/', websitesRouter);
 app.use('/admin/', adminRouter);
+app.use('/contact/', contactRouter);
 
 // other routes..
 app.get('/', (req, res) => {
@@ -87,14 +89,18 @@ app.get('/chat/', async (req, res) => {
     apiKey: OpenAIAPIKey,
   });
   const openai = new OpenAIApi(configuration);
-  const response = await openai.createChatCompletion({
-    model: 'gpt-3.5-turbo',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 1,
-    // max_tokens: 4096,
-  });
-  const { content } = response.data.choices[0].message;
-  res.json(content);
+  try {
+    const response = await openai.createChatCompletion({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 1,
+      // max_tokens: 4096,
+    });
+    const { content } = response.data.choices[0].message;
+    res.json(content);
+  } catch (err) {
+    res.status(500).send(err);
+  }
 });
 
 // 回傳JSON格式
