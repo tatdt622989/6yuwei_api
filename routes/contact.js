@@ -3,6 +3,7 @@ const express = require('express');
 
 const router = express.Router({ strict: true });
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const Contact = require('../models/contact');
 
 const upload = multer();
@@ -39,13 +40,35 @@ router.post('/', upload.none(), async (req, res) => {
       message,
     });
     await contact.save();
-    return res.json({
-      msg: 'Successful send',
+  } catch (err) {
+    return res.status(500).send('Failed to send');
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      port: process.env.MAIL_PORT,
+      secure: true,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASSWORD,
+      },
     });
+    const info = await transporter.sendMail({
+      from: process.env.MAIL_USER,
+      to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
+      subject: '官網聯絡表單',
+      text: `Email: ${email}\nMessage: ${message}`,
+    });
+    console.log('Message sent: %s', info.messageId);
   } catch (err) {
     console.log(err);
     return res.status(500).send('Failed to send');
   }
+
+  return res.json({
+    msg: 'Successful send',
+  });
 });
 
 module.exports = router;

@@ -5,6 +5,7 @@ const router = express.Router({ strict: true });
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const validator = require('validator');
 const { requireAdmin } = require('../middlewares/auth');
 
 // models
@@ -284,12 +285,21 @@ router.get('/list/', async (req, res) => {
   const page = req.query.page || 1;
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
+  const sortBy = req.query.sort === 'asc' ? 'asc' : 'desc';
+  const category = req.query.category || '';
+  const categoryArr = category.split(',')
+    .map((item) => validator.escape(item)) // 過濾特殊字元
+    .filter((item) => item); // 過濾空字串
+  let query = { visible: true }; // 預設查詢條件
+  if (categoryArr.length > 0) {
+    query = { category: { $in: categoryArr }, visible: true }; // 有分類的話就加上分類
+  }
   try {
     const total = await Website.countDocuments();
-    const list = await Website.find({ visible: true })
+    const list = await Website.find(query)
       .skip(skip)
       .limit(pageSize)
-      .sort({ createdAt: 'desc' })
+      .sort({ createdAt: sortBy })
       .populate({
         path: 'photos',
         options: {

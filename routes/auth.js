@@ -2,13 +2,19 @@ const express = require('express');
 
 const router = express.Router({ strict: true });
 const jwt = require('jsonwebtoken');
+const validator = require('validator');
 // models
 const User = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
 
 // 註冊
 router.post('/signup/', async (req, res) => {
-  if (!req.body || !req.body.username || !req.body.password || !req.body.email) {
+  if (
+    !req.body
+    || !req.body.username
+    || !req.body.password
+    || !req.body.email
+  ) {
     return res.status(400).send('Please fill in the complete information');
   }
 
@@ -31,21 +37,18 @@ router.post('/signup/', async (req, res) => {
     password,
   });
 
-  await user
-    .save()
-    .catch((err) => {
-      res.status(500).send(`Registration Failure-${err}`);
-    });
+  await user.save().catch((err) => {
+    res.status(500).send(`Registration Failure-${err}`);
+  });
 
   // jwt token
   const token = user.generateAuthToken();
 
-  res
-    .cookie('access_token', token, {
-      httpOnly: true, // 只能在伺服器端讀取cookie
-      secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-      sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-    });
+  res.cookie('access_token', token, {
+    httpOnly: true, // 只能在伺服器端讀取cookie
+    secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
+    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
+  });
 
   return res.json({
     msg: 'Register successfully',
@@ -62,12 +65,17 @@ router.post('/signup/', async (req, res) => {
 router.post('/login/', async (req, res) => {
   const { email, password } = req.body;
 
-  if (!req.body || !email || !password) {
+  if (
+    !req.body
+    || validator.isEmpty(email)
+    || validator.isEmpty(password)
+    || !validator.isEmail(email)
+  ) {
     return res.status(400).send('Please fill in the complete information');
   }
 
   // 尋找用戶
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: { $eq: email } });
 
   if (user) {
     // 比對密碼
@@ -77,12 +85,11 @@ router.post('/login/', async (req, res) => {
       // jwt token
       const token = user.generateAuthToken();
 
-      res
-        .cookie('access_token', token, {
-          httpOnly: true, // 只能在伺服器端讀取cookie
-          secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-          sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-        });
+      res.cookie('access_token', token, {
+        httpOnly: true, // 只能在伺服器端讀取cookie
+        secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
+        sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
+      });
 
       return res.json({
         msg: 'Login successful',
