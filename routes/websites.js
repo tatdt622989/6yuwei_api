@@ -321,6 +321,20 @@ router.get('/list/', async (req, res) => {
   }
 });
 
+// 取得類別(無權限)
+router.get('/category/', async (req, res) => {
+  try {
+    const category = await Website.find({ visible: true }).distinct('category');
+    return res.json({
+      msg: 'Successful query',
+      category,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to query');
+  }
+});
+
 // 查詢單筆資料(無權限)
 router.get('/:id/', async (req, res) => {
   const { id } = req.params;
@@ -337,7 +351,7 @@ router.get('/:id/', async (req, res) => {
   }
 });
 
-// 取得類別
+// 取得類別(有權限)
 router.get('/admin/category/', requireAdmin, async (req, res) => {
   try {
     const category = await Website.find().distinct('category');
