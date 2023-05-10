@@ -5,9 +5,11 @@ const router = express.Router({ strict: true });
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const Contact = require('../models/contact');
+const { requireAdmin } = require('../middlewares/auth');
 
 const upload = multer();
 
+// 表單提交
 router.post('/', upload.none(), async (req, res) => {
   const { email, message } = req.body;
   const token = req.body['g-recaptcha-response'];
@@ -69,6 +71,35 @@ router.post('/', upload.none(), async (req, res) => {
   return res.json({
     msg: 'Successful send',
   });
+});
+
+// 列出資料(有權限)
+router.get('/admin/list/', requireAdmin, async (req, res) => {
+  if (!req.query.page) {
+    return res.status(400).send('Lack of essential information');
+  }
+  const page = req.query.page || 1;
+  const pageSize = 12;
+  const skip = (page - 1) * pageSize; // 跳過幾筆
+  try {
+    const total = await Contact.countDocuments();
+    const list = await Contact.find()
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ createdAt: 'desc' })
+      .exec();
+    return res.json({
+      msg: 'Successful query',
+      list,
+      pageSize,
+      currentPage: page,
+      total,
+      totalPage: Math.ceil(total / pageSize),
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to query');
+  }
 });
 
 module.exports = router;

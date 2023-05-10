@@ -13,6 +13,7 @@ const websiteSchema = new mongoose.Schema({
   category: String,
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   visible: { type: Boolean, default: true },
+  homepage: { type: Boolean, default: false },
 }, { timestamps: true });
 
 const Website = mongoose.model('Website', websiteSchema);
