@@ -102,4 +102,27 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   }
 });
 
+// 刪除多筆資料(有權限)
+router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
+  if (!req.body || !req.body.ids) {
+    return res.status(400).send('Lack of essential information');
+  }
+  const { ids } = req.body;
+
+  if (!Array.isArray(ids)) {
+    return res.status(400).send('ids must be an array');
+  }
+
+  try {
+    const deletedData = await Contact.deleteMany({ _id: { $in: ids } });
+    const { title } = deletedData;
+    return res.json({
+      msg: `Successful delete ${title}`,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to delete');
+  }
+});
+
 module.exports = router;
