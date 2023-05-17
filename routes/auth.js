@@ -1,6 +1,7 @@
 const express = require('express');
 
 const router = express.Router({ strict: true });
+const multer = require('multer');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 // models
@@ -142,7 +143,6 @@ router.get('/loginStatus/', async (req, res) => {
   if (token) {
     await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
       if (decoded) {
-        // console.log('decoded', decoded);
         req.user = decoded;
         const isTokenInBlackList = await TokenBlackList.findOne({ token });
         if (isTokenInBlackList) {
@@ -166,10 +166,105 @@ router.get('/loginStatus/', async (req, res) => {
         }
         return res.status(403).send('Please login first');
       }
+      return null;
+    });
+    return null;
+  }
+  return res.status(403).send('Please login first');
+});
+
+// 取得特定用戶資料
+router.get('/user/', async (req, res) => {
+  const token = req.cookies.access_token;
+  if (token) {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+      if (decoded) {
+        // console.log('decoded', decoded);
+        req.user = decoded;
+        const isTokenInBlackList = await TokenBlackList.findOne({ token });
+        if (isTokenInBlackList) {
+          return res.status(403).send('Login timeout, please login again');
+        }
+        // 尋找用戶
+        const user = await User.findById(decoded.userId);
+        return res.json({
+          msg: 'Success',
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            permissions: user.permissions,
+            photo: user.photo ?? '',
+            phone: user.phone ?? '',
+            country: user.country ?? '',
+            birth: user.birth ?? '',
+            createdAt: user.createdAt,
+          },
+        });
+      }
+      if (err) {
+        if (err.name === 'TokenExpiredError') {
+          return res.status(403).send('Login timeout, please login again');
+        }
+        return res.status(403).send('Please login first');
+      }
 
       return null;
     });
+    return null;
   }
+  return res.status(403).send('Please login first');
+});
+
+// 修改用戶資料
+router.put('/user/', multer().any(), async (req, res) => {
+  const token = req.cookies.access_token;
+  const {
+    username, phone, country, birth,
+  } = req.body;
+  if (token) {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+      if (decoded) {
+        // console.log('decoded', decoded);
+        req.user = decoded;
+        const isTokenInBlackList = await TokenBlackList.findOne({ token });
+        if (isTokenInBlackList) {
+          return res.status(403).send('Login timeout, please login again');
+        }
+        // 修改用戶資料
+        const user = await User.findById(decoded.userId);
+        if (username) user.username = username;
+        if (phone) user.phone = phone;
+        if (country) user.country = country;
+        if (birth) user.birth = birth;
+        await user.save();
+        return res.json({
+          msg: 'Success',
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            permissions: user.permissions,
+            photo: user.photo ?? '',
+            phone: user.phone ?? '',
+            country: user.country ?? '',
+            birth: user.birth ?? '',
+            createdAt: user.createdAt,
+          },
+        });
+      }
+      if (err) {
+        if (err.name === 'TokenExpiredError') {
+          return res.status(403).send('Login timeout, please login again');
+        }
+        return res.status(403).send('Please login first');
+      }
+
+      return null;
+    });
+    return null;
+  }
+  return res.status(403).send('Please login first');
 });
 
 // hash generator
