@@ -11,6 +11,18 @@ router.get('/uploads/:filename/', (req, res) => {
   res.sendFile(imgPath);
 });
 
+// read need auth img
+router.get('/uploads/:id/:filename/', (req, res) => {
+  const { id, filename } = req.params;
+  console.log(req.user);
+  if (id === req.user.id) {
+    const imgPath = path.resolve('uploads', 'user', id, 'img', filename);
+    res.sendFile(imgPath);
+  } else {
+    res.status(403).send('Unauthorized');
+  }
+});
+
 // get file info
 router.get('/uploads/:filename/info', (req, res) => {
   const { filename } = req.params;

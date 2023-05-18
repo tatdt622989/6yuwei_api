@@ -2,11 +2,81 @@ const express = require('express');
 
 const router = express.Router({ strict: true });
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 // models
 const User = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
+
+// multer 設定
+const adminStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      const { user } = req;
+      const { id } = user;
+      const uploadPath = path.join(__dirname, `../uploads/user/${id}/img/`);
+      // 檢查目錄是否存在，如果不存在則創建目錄
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+      cb(null, uploadPath);
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
+  },
+  filename: (req, file, cb) => {
+    try {
+      const { user } = req;
+      const { id } = user;
+      const dest = path.join(__dirname, `../uploads/user/${id}/img/`);
+      const ext = path.extname(file.originalname);
+      const basename = path.basename(file.originalname, ext);
+      let i = 0;
+      let filename = file.originalname;
+      filename = Buffer.from(filename, 'latin1').toString('utf8');
+      const generateFilename = () => {
+        fs.access(path.join(dest, filename), (err) => {
+          if (err) {
+            req.photo = filename;
+            cb(null, filename);
+          } else {
+            i += 1;
+            filename = `${basename}_${i}${ext}`;
+            filename = Buffer.from(filename, 'latin1').toString('utf8');
+            generateFilename();
+          }
+        });
+      };
+      generateFilename();
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
+  },
+});
+
+/**
+ * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
+ * @param req - HTTP 請求對象。
+ * @param file - 剛上傳的文件。
+ * @param cb - 回調函數。
+ */
+const fileFilter = (req, file, cb) => {
+  if (!file.mimetype.startsWith('image')) {
+    cb(new Error('Not an image! Please upload an image.'), false);
+  }
+  cb(null, true);
+};
+
+const upload = multer({
+  storage: adminStorage,
+  fileFilter,
+  limits: { fileSize: 1024 * 1024 * 5 },
+  encoding: 'utf-8',
+});
 
 // 註冊
 router.post('/signup/', async (req, res) => {
@@ -190,7 +260,7 @@ router.get('/user/', async (req, res) => {
         return res.json({
           msg: 'Success',
           user: {
-            id: user.id,
+            _id: user.id,
             username: user.username,
             email: user.email,
             permissions: user.permissions,
@@ -217,8 +287,9 @@ router.get('/user/', async (req, res) => {
 });
 
 // 修改用戶資料
-router.put('/user/', multer().any(), async (req, res) => {
+router.put('/user/', upload.single('photo'), async (req, res) => {
   const token = req.cookies.access_token;
+  const userPhotoName = req.photo;
   const {
     username, phone, country, birth,
   } = req.body;
@@ -237,6 +308,15 @@ router.put('/user/', multer().any(), async (req, res) => {
         if (phone) user.phone = phone;
         if (country) user.country = country;
         if (birth) user.birth = birth;
+        if (user.photo) {
+          try {
+            // delete old photo
+            fs.unlinkSync(path.join(__dirname, `../uploads/user/${user.id}/img/${user.photo}`));
+          } catch (error) {
+            console.log('delete old photo error', error);
+          }
+        }
+        if (userPhotoName) user.photo = userPhotoName;
         await user.save();
         return res.json({
           msg: 'Success',
