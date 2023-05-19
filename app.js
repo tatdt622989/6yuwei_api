@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
+const threeDCGRouter = require('./routes/3dcg');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const { verifyToken } = require('./middlewares/auth');
@@ -76,6 +77,7 @@ app.use(verifyToken);
 // 路由
 app.use('/', authRouter);
 app.use('/websites/', websitesRouter);
+app.use('/3dcg/', threeDCGRouter);
 app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
 
