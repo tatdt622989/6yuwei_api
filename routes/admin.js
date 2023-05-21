@@ -2,17 +2,17 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
-const router = express.Router({ strict: true });
+const router = express.Router();
 
 // read img
-router.get('/uploads/:filename/', (req, res) => {
+router.get('/uploads/:filename', (req, res) => {
   const { filename } = req.params;
   const imgPath = path.resolve('uploads', 'admin', 'img', filename);
   res.sendFile(imgPath);
 });
 
 // read need auth img
-router.get('/uploads/:id/:filename/', (req, res) => {
+router.get('/uploads/:id/:filename', (req, res) => {
   const { id, filename } = req.params;
   console.log(req.user);
   if (id === req.user.id) {

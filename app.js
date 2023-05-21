@@ -7,6 +7,7 @@ const path = require('path');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
 const threeDCGsRouter = require('./routes/3dcgs');
+const animationsRouter = require('./routes/animations');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const { verifyToken } = require('./middlewares/auth');
@@ -61,15 +62,15 @@ app.use(express.static(path.resolve(__dirname, 'node_modules')));
 app.use(cookieParser());
 
 // 重定向到安全的路徑
-app.use((req, res, next) => {
-  if (req.path.substr(-1) !== '/' && req.path.length > 1) {
-    const query = req.url.slice(req.path.length);
-    const safePath = `${req.path}/`;
-    res.redirect(301, safePath + query);
-  } else {
-    next();
-  }
-});
+// app.use((req, res, next) => {
+//   if (req.path.substr(-1) !== '/' && req.path.length > 1) {
+//     const query = req.url.slice(req.path.length);
+//     const safePath = `${req.path}/`;
+//     res.redirect(301, safePath + query);
+//   } else {
+//     next();
+//   }
+// });
 
 // 驗證token
 app.use(verifyToken);
@@ -77,7 +78,8 @@ app.use(verifyToken);
 // 路由
 app.use('/', authRouter);
 app.use('/websites/', websitesRouter);
-app.use('/3dcg/', threeDCGsRouter);
+app.use('/3dcgs/', threeDCGsRouter);
+app.use('/animations/', animationsRouter);
 app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
 

@@ -10,7 +10,7 @@ const publicRoutes = [
   '/test/',
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/list/',
-  '/admin/uploads/[^/.]*/',
+  '/admin/uploads/[^./]+.(jpg|jpeg|png|gif|webp)',
   '/contact/',
   '/websites/category/',
 ];

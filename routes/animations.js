@@ -9,7 +9,7 @@ const validator = require('validator');
 const { requireAdmin } = require('../middlewares/auth');
 
 // models
-const Website = require('../models/website');
+const Animation = require('../models/animation');
 const Photo = require('../models/photos');
 
 // multer 設定
@@ -83,11 +83,11 @@ router.post(
     }
 
     try {
-      const website = await Website.findById(unitId).exec();
-      if (!website) {
-        return res.status(404).send('Website not found');
+      const animation = await Animation.findById(unitId).exec();
+      if (!animation) {
+        return res.status(404).send('Animation not found');
       }
-      if (website.photos.length >= 5) {
+      if (animation.photos.length >= 5) {
         return res.status(400).send('The number of photos cannot exceed 5');
       }
 
@@ -100,8 +100,8 @@ router.post(
       await photo.save();
       const photoId = photo.id;
 
-      website.photos.push(photoId);
-      await website.save();
+      animation.photos.push(photoId);
+      await animation.save();
 
       return res.json({
         msg: 'Successful upload',
@@ -126,7 +126,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 
   // 刪除圖片資料
   try {
-    const website = await Website.findById(unitId)
+    const animation = await Animation.findById(unitId)
       .populate({
         path: 'photos',
         options: {
@@ -134,11 +134,11 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
         },
       })
       .exec();
-    if (!website) {
-      return res.status(404).send('Website not found');
+    if (!animation) {
+      return res.status(404).send('Animation not found');
     }
 
-    const photo = website.photos.find((p) => p.id.toString() === photoId);
+    const photo = animation.photos.find((p) => p.id.toString() === photoId);
     if (!photo) {
       return res.status(404).send('Photo not found');
     }
@@ -148,11 +148,11 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
     fs.unlinkSync(imgPath);
 
     await photo.remove();
-    website.photos.pull(photo);
-    await website.save();
+    animation.photos.pull(photo);
+    await animation.save();
 
     return res.json({
-      data: website,
+      data: animation,
       msg: 'Successful delete',
     });
   } catch (err) {
@@ -172,14 +172,14 @@ router.post('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
 
   const { data } = req.body;
 
-  const website = new Website({
+  const animation = new Animation({
     userId: id,
     ...data,
   });
-  await website.save();
+  await animation.save();
   return res.json({
     msg: 'Successful add',
-    data: website,
+    data: animation,
   });
 });
 
@@ -195,10 +195,10 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
-    const total = await Website.countDocuments({
+    const total = await Animation.countDocuments({
       $or: [{ title: { $regex: regex } }, { url: { $regex: regex } }],
     });
-    const list = await Website.find({
+    const list = await Animation.find({
       $or: [{ title: { $regex: regex } }, { url: { $regex: regex } }],
     })
       .skip(skip)
@@ -233,12 +233,12 @@ router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
     return res.status(400).send('Lack of essential information');
   }
   try {
-    const updatedWebsite = await Website.findByIdAndUpdate(_id, data, {
+    const updatedAnimation = await Animation.findByIdAndUpdate(_id, data, {
       new: true,
     }).populate('photos');
     return res.json({
       msg: 'Successful update',
-      data: updatedWebsite,
+      data: updatedAnimation,
     });
   } catch (err) {
     console.log(err);
@@ -258,7 +258,7 @@ router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
   }
 
   try {
-    const deletedData = await Website.deleteMany({ _id: { $in: ids } });
+    const deletedData = await Animation.deleteMany({ _id: { $in: ids } });
     const { title } = deletedData;
     return res.json({
       msg: `Successful delete ${title}`,
@@ -273,7 +273,7 @@ router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
 router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
-    const deletedData = await Website.findByIdAndDelete(id);
+    const deletedData = await Animation.findByIdAndDelete(id);
     const { title } = deletedData;
     return res.json({
       msg: `Successful delete ${title}`,
@@ -302,8 +302,8 @@ router.get('/list/', async (req, res) => {
     query = { category: { $in: categoryArr }, visible: true }; // 有分類的話就加上分類
   }
   try {
-    const total = await Website.countDocuments();
-    const list = await Website.find(query)
+    const total = await Animation.countDocuments();
+    const list = await Animation.find(query)
       .skip(skip)
       .limit(pageSize)
       .sort({ createdAt: sortBy })
@@ -331,7 +331,7 @@ router.get('/list/', async (req, res) => {
 // 取得類別(無權限)
 router.get('/category/', async (req, res) => {
   try {
-    const category = await Website.find({ visible: true }).distinct('category');
+    const category = await Animation.find({ visible: true }).distinct('category');
     return res.json({
       msg: 'Successful query',
       category,
@@ -347,10 +347,10 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send('Lack of essential information');
   try {
-    const website = await Website.findById(id).populate('photos');
+    const animation = await Animation.findById(id).populate('photos');
     return res.json({
       msg: 'Successful query',
-      data: website,
+      data: animation,
     });
   } catch (err) {
     console.log(err);
@@ -361,7 +361,7 @@ router.get('/:id/', async (req, res) => {
 // 取得類別(有權限)
 router.get('/admin/category/', requireAdmin, async (req, res) => {
   try {
-    const category = await Website.find().distinct('category');
+    const category = await Animation.find().distinct('category');
     return res.json({
       msg: 'Successful query',
       category,

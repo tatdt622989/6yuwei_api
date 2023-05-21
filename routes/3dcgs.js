@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 const express = require('express');
 
-const router = express.Router({ strict: true });
+const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
