@@ -286,9 +286,7 @@ router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
 
 // 查詢資料(無權限)
 router.get('/list/', async (req, res) => {
-  if (!req.query.page) {
-    return res.status(400).send('Lack of essential information');
-  }
+  const homepage = parseInt(req.query.homepage, 10) || 0;
   const page = req.query.page || 1;
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
@@ -297,9 +295,12 @@ router.get('/list/', async (req, res) => {
   const categoryArr = category.split(',')
     .map((item) => validator.escape(item)) // 過濾特殊字元
     .filter((item) => item); // 過濾空字串
-  let query = { visible: true }; // 預設查詢條件
+  let query = {
+    visible: true,
+    homepage,
+  }; // 預設查詢條件
   if (categoryArr.length > 0) {
-    query = { category: { $in: categoryArr }, visible: true }; // 有分類的話就加上分類
+    query = { category: { $in: categoryArr }, visible: true, homepage }; // 有分類的話就加上分類
   }
   try {
     const total = await ThreeDCG.countDocuments();
