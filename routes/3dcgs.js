@@ -286,9 +286,9 @@ router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
 
 // 查詢資料(無權限)
 router.get('/list/', async (req, res) => {
-  const homepage = parseInt(req.query.homepage, 10) || 0;
+  const homepage = !!parseInt(req.query.homepage, 10);
   const page = req.query.page || 1;
-  const pageSize = 12;
+  const pageSize = req.query.pageSize || 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   const sortBy = req.query.sort === 'asc' ? 'asc' : 'desc';
   const category = req.query.category || '';
@@ -297,10 +297,18 @@ router.get('/list/', async (req, res) => {
     .filter((item) => item); // 過濾空字串
   let query = {
     visible: true,
-    homepage,
-  }; // 預設查詢條件
+  };
   if (categoryArr.length > 0) {
-    query = { category: { $in: categoryArr }, visible: true, homepage }; // 有分類的話就加上分類
+    query = {
+      ...query,
+      category: { $in: categoryArr },
+    };
+  }
+  if (req.query.homepage !== undefined) {
+    query = {
+      ...query,
+      homepage,
+    };
   }
   try {
     const total = await ThreeDCG.countDocuments();

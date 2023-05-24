@@ -295,16 +295,21 @@ router.get('/list/', async (req, res) => {
   const categoryArr = category.split(',')
     .map((item) => validator.escape(item)) // 過濾特殊字元
     .filter((item) => item); // 過濾空字串
+  // 查詢條件
   let query = {
     visible: true,
-    homepage,
-  }; // 預設查詢條件
+  };
   if (categoryArr.length > 0) {
     query = {
+      ...query,
       category: { $in: categoryArr },
-      visible: true,
+    };
+  }
+  if (req.query.homepage !== undefined) {
+    query = {
+      ...query,
       homepage,
-    }; // 有分類的話就加上分類
+    };
   }
   try {
     const total = await Website.countDocuments();
