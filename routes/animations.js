@@ -306,7 +306,7 @@ router.get('/list/', async (req, res) => {
     const list = await Animation.find(query)
       .skip(skip)
       .limit(pageSize)
-      .sort({ createdAt: sortBy })
+      .sort({ updatedAt: sortBy })
       .populate({
         path: 'photos',
         options: {

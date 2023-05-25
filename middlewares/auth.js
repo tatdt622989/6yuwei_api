@@ -17,6 +17,8 @@ const publicRoutes = [
   '/admin/uploads/[^./]+.(jpg|jpeg|png|gif|webp)',
   '/contact/',
   '/websites/category/',
+  '/3dcgs/category/',
+  '/animations/category/',
 ];
 
 async function verifyToken(req, res, next) {
