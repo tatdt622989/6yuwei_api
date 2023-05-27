@@ -138,6 +138,8 @@ router.post('/login/', async (req, res) => {
 
   if (
     !req.body
+    || !email
+    || !password
     || validator.isEmpty(email)
     || validator.isEmpty(password)
     || !validator.isEmail(email)
