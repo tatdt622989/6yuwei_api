@@ -3,7 +3,8 @@ const express = require('express');
 
 const router = express.Router();
 const multer = require('multer');
-const nodemailer = require('nodemailer');
+// const nodemailer = require('nodemailer');
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 const Contact = require('../models/contact');
 const { requireAdmin } = require('../middlewares/auth');
 
@@ -47,35 +48,84 @@ router.post('/', upload.none(), async (req, res) => {
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.MAIL_HOST,
-      port: process.env.MAIL_PORT,
-      secure: true,
-      auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASSWORD,
+    const defaultClient = SibApiV3Sdk.ApiClient.instance;
+
+    // Configure API key authorization: api-key
+    const apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = process.env.MAIL_API_KEY;
+
+    // Uncomment below two lines to configure authorization using: partner-key
+    // var partnerKey = defaultClient.authentications['partner-key'];
+    // partnerKey.apiKey = 'YOUR API KEY';
+
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail = {
+      sender: {
+        name: '6yuwei',
+        email: 'contact@6yuwe.com',
       },
-    });
-    console.log('Creating transporter...');
-    const mailRes = await new Promise((resolve, reject) => {
-      transporter.sendMail({
-        from: process.env.MAIL_USER,
-        to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
-        subject: '官網聯絡表單',
-        text: `Email: ${email}\nMessage: ${message}`,
-      }, (error, info) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(info);
-        }
+      to: [{
+        email: '70212cbkj67@gmail.com',
+        name: '6yuwei',
+      }],
+      htmlContent: `<!DOCTYPE html> <html> <body><h1>官網聯絡表單-${email}</h1><hr><p>${message}</p></html>`,
+      subject: `官網聯絡表單-${email}`,
+      headers: {
+        'X-Mailin-custom': 'custom_header_1:custom_value_1|custom_header_2:custom_value_2',
+      },
+      replyTo: {
+        email,
+        name: 'customer',
+      },
+    };
+
+    await new Promise((resolve, reject) => {
+      apiInstance.sendTransacEmail(sendSmtpEmail).then((data) => {
+        console.log(`API called successfully. Returned data: ${data}`);
+        resolve();
+      }, (error) => {
+        console.error(error);
+        reject(error);
       });
     });
-    console.log('Message sent:', mailRes);
   } catch (err) {
     console.log(err);
     return res.status(500).send('Failed to send');
   }
+
+  // try {
+  //   const transporter = nodemailer.createTransport({
+  //     host: process.env.MAIL_HOST,
+  //     port: process.env.MAIL_PORT,
+  //     secure: true,
+  //     auth: {
+  //       user: process.env.MAIL_USER,
+  //       pass: process.env.MAIL_PASSWORD,
+  //     },
+  //   });
+  //   console.log('Creating transporter...');
+  //   const mailRes = await new Promise((resolve, reject) => {
+  //     transporter.sendMail({
+  //       from: process.env.MAIL_USER,
+  //       to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
+  //       subject: '官網聯絡表單',
+  //       text: `Email: ${email}\nMessage: ${message}`,
+  //     }, (error, info) => {
+  //       if (error) {
+  //         console.log(error);
+  //         reject(error);
+  //       } else {
+  //         resolve(info);
+  //       }
+  //     });
+  //   });
+  //   console.log('Message sent:', mailRes);
+  // } catch (err) {
+  //   console.log(err);
+  //   return res.status(500).send('Failed to send');
+  // }
 
   return res.json({
     msg: 'Successful send',
