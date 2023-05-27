@@ -43,7 +43,7 @@ router.post('/', upload.none(), async (req, res) => {
     });
     await contact.save();
   } catch (err) {
-    return res.status(500).send('Failed to send');
+    return res.status(500).send('Failed to save');
   }
 
   try {
@@ -56,6 +56,7 @@ router.post('/', upload.none(), async (req, res) => {
         pass: process.env.MAIL_PASSWORD,
       },
     });
+    console.log('created:', process.env.MAIL_USER, process.env.MAIL_USER2);
     const info = await transporter.sendMail({
       from: process.env.MAIL_USER,
       to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
