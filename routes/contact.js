@@ -56,16 +56,22 @@ router.post('/', upload.none(), async (req, res) => {
         pass: process.env.MAIL_PASSWORD,
       },
     });
-    console.log('created:', process.env.MAIL_USER, process.env.MAIL_USER2);
-    const info = await transporter.sendMail({
-      from: process.env.MAIL_USER,
-      to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
-      subject: '官網聯絡表單',
-      text: `Email: ${email}\nMessage: ${message}`,
-    }, (error, r) => {
-      console.log('sendmail', error, r);
+    console.log('Creating transporter...');
+    const mailRes = await new Promise((resolve, reject) => {
+      transporter.sendMail({
+        from: process.env.MAIL_USER,
+        to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
+        subject: '官網聯絡表單',
+        text: `Email: ${email}\nMessage: ${message}`,
+      }, (error, info) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(info);
+        }
+      });
     });
-    console.log('Message sent: %s', info.messageId);
+    console.log('Message sent:', mailRes);
   } catch (err) {
     console.log(err);
     return res.status(500).send('Failed to send');
