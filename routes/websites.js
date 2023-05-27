@@ -59,6 +59,7 @@ const adminStorage = multer.diskStorage({
  */
 const fileFilter = (req, file, cb) => {
   if (!file.mimetype.startsWith('image')) {
+    console.log('Not an image!');
     cb(new Error('Not an image! Please upload an image.'), false);
   }
   cb(null, true);
@@ -81,6 +82,8 @@ router.post(
     if (!req.body || !unitId || !req.file) {
       return res.status(400).send('Lack of essential information');
     }
+
+    console.log(req.file);
 
     try {
       const website = await Website.findById(unitId).exec();

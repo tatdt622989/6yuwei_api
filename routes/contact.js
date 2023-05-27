@@ -81,8 +81,6 @@ router.post('/', upload.none(), async (req, res) => {
       },
     };
 
-    console.log(process.env.MAIL_API_KEY);
-
     await new Promise((resolve, reject) => {
       apiInstance.sendTransacEmail(sendSmtpEmail).then((data) => {
         console.log(`API called successfully. Returned data: ${data}`);
