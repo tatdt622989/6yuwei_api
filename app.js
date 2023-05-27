@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const { Configuration, OpenAIApi } = require('openai');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
 const threeDCGsRouter = require('./routes/3dcgs');
@@ -11,6 +12,13 @@ const animationsRouter = require('./routes/animations');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const { verifyToken } = require('./middlewares/auth');
+
+const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
+
+console.log = (message) => {
+  outputLog.write(`${new Date().toISOString()}: ${message}\n`);
+  process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
+};
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
@@ -34,7 +42,7 @@ mongoose
 const app = express();
 
 // 跨域設定
-let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com'];
+let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com'];
 if (env === 'development') {
   allowedOrigins = ['http://localhost:3000', 'http://localhost:8888', 'http://127.0.0.1:5500'];
 }
