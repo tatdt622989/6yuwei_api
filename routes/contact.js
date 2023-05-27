@@ -62,6 +62,8 @@ router.post('/', upload.none(), async (req, res) => {
       to: `${process.env.MAIL_USER},${process.env.MAIL_USER2}`,
       subject: '官網聯絡表單',
       text: `Email: ${email}\nMessage: ${message}`,
+    }, (error, r) => {
+      console.log('sendmail', error, r);
     });
     console.log('Message sent: %s', info.messageId);
   } catch (err) {
