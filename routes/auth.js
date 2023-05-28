@@ -225,10 +225,11 @@ router.get('/loginStatus/', async (req, res) => {
         return res.json({
           msg: 'Logged in',
           user: {
-            id: user.id,
+            _id: user.id,
             username: user.username,
             email: user.email,
             permissions: user.permissions,
+            photo: user.photo,
           },
         });
       }

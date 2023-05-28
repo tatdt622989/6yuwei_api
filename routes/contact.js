@@ -5,6 +5,7 @@ const router = express.Router();
 const multer = require('multer');
 // const nodemailer = require('nodemailer');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
+const validator = require('validator');
 const Contact = require('../models/contact');
 const { requireAdmin } = require('../middlewares/auth');
 
@@ -137,12 +138,19 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
   if (!req.query.page) {
     return res.status(400).send('Lack of essential information');
   }
+  let keyword = req.query.keyword || '';
+  keyword = validator.escape(keyword);
+  const regex = new RegExp(keyword, 'i');
   const page = req.query.page || 1;
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
-    const total = await Contact.countDocuments();
-    const list = await Contact.find()
+    const total = await Contact.countDocuments({
+      $or: [{ email: { $regex: regex } }, { message: { $regex: regex } }],
+    });
+    const list = await Contact.find({
+      $or: [{ email: { $regex: regex } }, { message: { $regex: regex } }],
+    })
       .skip(skip)
       .limit(pageSize)
       .sort({ createdAt: 'desc' })
