@@ -134,6 +134,8 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-app.listen(3001, () => {
+const server = app.listen(3001, () => {
   console.log('伺服器正在port3001上運行');
 });
+
+server.timeout = 1000 * 60 * 5;
