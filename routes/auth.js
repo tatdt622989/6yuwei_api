@@ -29,28 +29,9 @@ const adminStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     try {
-      const { user } = req;
-      const { id } = user;
-      const dest = path.join(__dirname, `../uploads/user/${id}/img/`);
-      const ext = path.extname(file.originalname);
-      const basename = path.basename(file.originalname, ext);
-      let i = 0;
       let filename = file.originalname;
       filename = Buffer.from(filename, 'latin1').toString('utf8');
-      const generateFilename = () => {
-        fs.access(path.join(dest, filename), (err) => {
-          if (err) {
-            req.photo = filename;
-            cb(null, filename);
-          } else {
-            i += 1;
-            filename = `${basename}_${i}${ext}`;
-            filename = Buffer.from(filename, 'latin1').toString('utf8');
-            generateFilename();
-          }
-        });
-      };
-      generateFilename();
+      cb(null, filename);
     } catch (err) {
       console.error(err);
       cb(err, null);
@@ -292,7 +273,7 @@ router.get('/user/', async (req, res) => {
 // 修改用戶資料
 router.put('/user/', upload.single('photo'), async (req, res) => {
   const token = req.cookies.access_token;
-  const userPhotoName = req.photo;
+  const userPhotoName = req && req.file && req.file.filename;
   const {
     username, phone, country, birth,
   } = req.body;
@@ -311,20 +292,20 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
         if (phone) user.phone = phone;
         if (country) user.country = country;
         if (birth) user.birth = birth;
-        if (user.photo) {
+        if (userPhotoName) {
           try {
             // delete old photo
             fs.unlinkSync(path.join(__dirname, `../uploads/user/${user.id}/img/${user.photo}`));
           } catch (error) {
             console.log('delete old photo error', error);
           }
+          user.photo = userPhotoName;
         }
-        if (userPhotoName) user.photo = userPhotoName;
         await user.save();
         return res.json({
           msg: 'Success',
           user: {
-            id: user.id,
+            _id: user.id,
             username: user.username,
             email: user.email,
             permissions: user.permissions,

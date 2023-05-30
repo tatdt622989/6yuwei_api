@@ -13,12 +13,12 @@ const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const { verifyToken } = require('./middlewares/auth');
 
-const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
+// const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
 
-console.log = (message) => {
-  outputLog.write(`${new Date().toISOString()}: ${message}\n`);
-  process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
-};
+// console.log = (message) => {
+//   outputLog.write(`${new Date().toISOString()}: ${message}\n`);
+//   process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
+// };
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
