@@ -83,8 +83,6 @@ router.post(
       return res.status(400).send('Lack of essential information');
     }
 
-    console.log(req.file);
-
     try {
       const website = await Website.findById(unitId).exec();
       if (!website) {
