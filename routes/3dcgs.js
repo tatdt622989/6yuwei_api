@@ -59,7 +59,9 @@ const adminStorage = multer.diskStorage({
  */
 const fileFilter = (req, file, cb) => {
   if (!file.mimetype.startsWith('image')) {
-    cb(new Error('Not an image! Please upload an image.'), false);
+    console.log('Not an image!');
+    req.fileError = 'Not an image! Please upload an image.';
+    cb(null, false);
   }
   cb(null, true);
 };
@@ -78,6 +80,11 @@ router.post(
   upload.single('file'),
   async (req, res) => {
     const { unitId } = req.body;
+
+    if (req.fileError) {
+      return res.status(400).send(req.fileError);
+    }
+
     if (!req.body || !unitId || !req.file) {
       return res.status(400).send('Lack of essential information');
     }
@@ -237,7 +244,7 @@ router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
     delete data.photos;
     const updatedThreeDCG = await ThreeDCG.findByIdAndUpdate(_id, data, {
       new: true,
-    });
+    }).populate('photos');
     return res.json({
       msg: 'Successful update',
       data: updatedThreeDCG,
@@ -381,6 +388,18 @@ router.get('/admin/category/', requireAdmin, async (req, res) => {
     console.log(err);
     return res.status(500).send('Failed to query');
   }
+});
+
+// 自訂錯誤處理中間件
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // Multer 錯誤處理
+    res.status(400).send(err.message);
+  } else {
+    // 其他錯誤處理
+    res.status(500).send(err.message);
+  }
+  next();
 });
 
 module.exports = router;
