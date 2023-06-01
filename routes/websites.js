@@ -234,9 +234,11 @@ router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
     return res.status(400).send('Lack of essential information');
   }
   try {
+    // do not update photos
+    delete data.photos;
     const updatedWebsite = await Website.findByIdAndUpdate(_id, data, {
       new: true,
-    }).populate('photos');
+    });
     return res.json({
       msg: 'Successful update',
       data: updatedWebsite,
@@ -317,11 +319,11 @@ router.get('/list/', async (req, res) => {
     const list = await Website.find(query)
       .skip(skip)
       .limit(pageSize)
-      .sort({ createdAt: sortBy })
+      .sort({ updatedAt: sortBy })
       .populate({
         path: 'photos',
         options: {
-          sort: { createdAt: 'desc' },
+          sort: { updatedAt: 'desc' },
         },
       })
       .exec();
