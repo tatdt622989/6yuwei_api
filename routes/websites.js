@@ -366,7 +366,12 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send('Lack of essential information');
   try {
-    const website = await Website.findById(id).populate('photos');
+    const website = await Website.findById(id).populate({
+      path: 'photos',
+      options: {
+        sort: { createdAt: 'desc' },
+      },
+    });
     return res.json({
       msg: 'Successful query',
       data: website,
