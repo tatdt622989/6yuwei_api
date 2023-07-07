@@ -99,8 +99,8 @@ app.get('/chat/', async (req, res) => {
     const response = await openai.createChatCompletion({
       model: 'gpt-4',
       messages: [
-        { role: 'system', 'You are a professional Japanese teacher who corrects my grammar while chatting with me.' },
-        { role: 'user', content: prompt }
+        { role: 'system', content: 'You are a professional Japanese teacher who corrects my grammar while chatting with me.' },
+        { role: 'user', content: prompt },
       ],
       temperature: 1,
       // max_tokens: 4096,
