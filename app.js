@@ -97,8 +97,11 @@ app.get('/chat/', async (req, res) => {
   const openai = new OpenAIApi(configuration);
   try {
     const response = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', 'You are a professional Japanese teacher who corrects my grammar while chatting with me.' },
+        { role: 'user', content: prompt }
+      ],
       temperature: 1,
       // max_tokens: 4096,
     });
