@@ -115,13 +115,17 @@ app.get('/chat/', async (req, res) => {
 });
 
 // api test
-app.get('/test', requireAdmin, (req, res) => {
+app.get('/test/', requireAdmin, (req, res) => {
   const status = {
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     dbURL,
     env: process.env.NODE_ENV,
     serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
     nodeVersion: process.version,
+    memoryUsage: process.memoryUsage(),
+    uptime: process.uptime(),
+    cpuUsage: process.cpuUsage(),
+    pid: process.pid,
   };
 
   res.json(status);

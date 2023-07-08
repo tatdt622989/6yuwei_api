@@ -7,7 +7,6 @@ const publicRoutes = [
   '/signup/',
   '/logout/',
   '/chat/',
-  '/test/',
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/list/',
   '/3dcgs/list/',
