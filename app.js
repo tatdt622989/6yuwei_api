@@ -11,16 +11,12 @@ const threeDCGsRouter = require('./routes/3dcgs');
 const animationsRouter = require('./routes/animations');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
-const { verifyToken } = require('./middlewares/auth');
+const { verifyToken, requireAdmin } = require('./middlewares/auth');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
 
+// 將console.log輸出到檔案
 console.log = (message) => {
-  outputLog.write(`${new Date().toISOString()}: ${message}\n`);
-  process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
-};
-
-console.info = (message) => {
   outputLog.write(`${new Date().toISOString()}: ${message}\n`);
   process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
 };
@@ -118,6 +114,18 @@ app.get('/chat/', async (req, res) => {
   }
 });
 
+// api test
+app.get('/test', requireAdmin, (req, res) => {
+  const status = {
+    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    env: process.env.NODE_ENV,
+    serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
+    nodeVersion: process.version,
+  };
+
+  res.json(status);
+});
+
 // 回傳JSON格式
 /* app.get('/json', (req, res) => {
   res.json({
@@ -136,21 +144,8 @@ app.get('*', (req, res) => {
   res.send('404 - お探しのページは見つかりませんでした');
 });
 
-// api test
-app.get('/test', (req, res) => {
-  const status = {
-    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    env: process.env.NODE_ENV,
-    serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
-    nodeVersion: process.version,
-  };
-
-  res.json(status);
-});
-
 // port, callback
 const server = app.listen(3001, () => {
-  console.info(process.env);
   console.log(process.env.DB_URL);
   console.log('伺服器正在port3001上運行');
 });
