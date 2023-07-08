@@ -91,7 +91,7 @@ app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
 });
 app.get('/chat/', async (req, res) => {
-  const { prompt } = req.query;
+  const { prompt, systemPrompt } = req.query;
   const configuration = new Configuration({
     apiKey: OpenAIAPIKey,
   });
@@ -100,7 +100,7 @@ app.get('/chat/', async (req, res) => {
     const response = await openai.createChatCompletion({
       model: 'gpt-3.5-turbo-16k-0613',
       messages: [
-        { role: 'system', content: 'You are a professional front-end engineer, and I want you to follow my instructions to generate directly executable programs' },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
       ],
       temperature: 1,
@@ -118,6 +118,7 @@ app.get('/chat/', async (req, res) => {
 app.get('/test', requireAdmin, (req, res) => {
   const status = {
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    dbURL,
     env: process.env.NODE_ENV,
     serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
     nodeVersion: process.version,
