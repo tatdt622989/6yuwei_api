@@ -97,9 +97,9 @@ app.get('/chat/', async (req, res) => {
   const openai = new OpenAIApi(configuration);
   try {
     const response = await openai.createChatCompletion({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo-16k-0613',
       messages: [
-        { role: 'system', content: 'You are a professional Japanese teacher who corrects my grammar while chatting with me.' },
+        { role: 'system', content: 'You are a professional front-end engineer, and I want you to follow my instructions to generate directly executable programs' },
         { role: 'user', content: prompt },
       ],
       temperature: 1,
@@ -108,6 +108,7 @@ app.get('/chat/', async (req, res) => {
     const { content } = response.data.choices[0].message;
     res.json(content);
   } catch (err) {
+    console.log(err);
     res.status(500).send(err);
   }
 });
@@ -131,7 +132,7 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-const server = app.listen(3001, () => {
+const server = app.listen(3002, () => {
   console.log('伺服器正在port3001上運行');
 });
 
