@@ -136,6 +136,18 @@ app.get('*', (req, res) => {
   res.send('404 - お探しのページは見つかりませんでした');
 });
 
+// api test
+app.get('/test', (req, res) => {
+  const status = {
+    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    env: process.env.NODE_ENV,
+    serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
+    nodeVersion: process.version,
+  };
+
+  res.json(status);
+});
+
 // port, callback
 const server = app.listen(3001, () => {
   console.info(process.env);
