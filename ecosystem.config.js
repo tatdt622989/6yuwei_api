@@ -5,6 +5,6 @@ module.exports = {
     instances: 'max',
     exec_mode: 'cluster',
     watch: true,
-    ignore_watch: ['node_modules', 'logs', 'uploads'],
+    ignore_watch: ['node_modules', 'logs', 'uploads', '*.log'],
   }],
 };

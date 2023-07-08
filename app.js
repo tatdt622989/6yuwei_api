@@ -20,6 +20,11 @@ console.log = (message) => {
   process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
 };
 
+console.info = (message) => {
+  outputLog.write(`${new Date().toISOString()}: ${message}\n`);
+  process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
+};
+
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
@@ -132,7 +137,9 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-const server = app.listen(3002, () => {
+const server = app.listen(3001, () => {
+  console.info(process.env);
+  console.log(process.env.DB_URL);
   console.log('伺服器正在port3001上運行');
 });
 
