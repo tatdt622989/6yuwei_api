@@ -211,6 +211,10 @@ router.get('/loginStatus/', async (req, res) => {
             email: user.email,
             permissions: user.permissions,
             photo: user.photo,
+            phone: user.phone ?? '',
+            country: user.country ?? '',
+            birth: user.birth ?? '',
+            createdAt: user.createdAt,
           },
         });
       }
@@ -288,10 +292,10 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
         }
         // 修改用戶資料
         const user = await User.findById(decoded.userId);
-        if (username) user.username = username;
-        if (phone) user.phone = phone;
-        if (country) user.country = country;
-        if (birth) user.birth = birth;
+        user.username = username ?? '';
+        user.phone = phone ?? '';
+        user.country = country ?? '';
+        user.birth = birth ?? '';
         if (userPhotoName) {
           try {
             // delete old photo
