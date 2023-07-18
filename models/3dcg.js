@@ -14,6 +14,7 @@ const threeDCGSchema = new mongoose.Schema({
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   visible: { type: Boolean, default: true },
   homepage: { type: Boolean, default: false },
+  top: { type: Boolean, default: false },
 }, { timestamps: true });
 
 const ThreeDCG = mongoose.model('ThreeDCG', threeDCGSchema);
