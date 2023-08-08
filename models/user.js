@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   photo: String,
   country: String,
   birth: Date,
+  balance: { type: Number, default: 0 },
   permissions: { type: String, default: 'general', enum: ['general', 'admin'] },
 }, { timestamps: true });
 

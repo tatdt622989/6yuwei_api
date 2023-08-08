@@ -95,8 +95,7 @@ const requireAdmin = (req, res, next) => {
  */
 const requireUser = (req, res, next) => {
   const { user } = req;
-
-  if (user && user.permissions.includes('general')) {
+  if (user && user.id) {
     next();
   } else {
     res.status(401).json({ error: 'Unauthorized' });

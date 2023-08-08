@@ -11,6 +11,7 @@ const threeDCGsRouter = require('./routes/3dcgs');
 const animationsRouter = require('./routes/animations');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
+const componentsRouter = require('./routes/components');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
@@ -85,6 +86,7 @@ app.use('/3dcgs/', threeDCGsRouter);
 app.use('/animations/', animationsRouter);
 app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
+app.use('/components/', componentsRouter);
 
 // other routes..
 app.get('/', (req, res) => {
@@ -110,7 +112,7 @@ app.get('/chat/', async (req, res) => {
     res.json(content);
   } catch (err) {
     console.log(err);
-    res.status(500).send(err);
+    res.status(500).send('error');
   }
 });
 
