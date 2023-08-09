@@ -100,7 +100,7 @@ app.get('/chat/', async (req, res) => {
   const openai = new OpenAIApi(configuration);
   try {
     const response = await openai.createChatCompletion({
-      model: 'gpt-3.5-turbo-16k-0613',
+      model: 'gpt-4',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },

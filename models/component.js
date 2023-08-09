@@ -15,7 +15,7 @@ exports.ComponentType = ComponentType;
 // 元件
 const componentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  componentTypeId: { type: mongoose.Schema.Types.ObjectId, ref: 'ComponentType' },
+  typeId: { type: mongoose.Schema.Types.ObjectId, ref: 'ComponentType' },
   title: String,
   styleFileName: String,
 }, { timestamps: true });
