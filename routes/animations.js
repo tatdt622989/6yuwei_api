@@ -311,7 +311,7 @@ router.get('/list/', async (req, res) => {
     query = { category: { $in: categoryArr }, visible: true }; // 有分類的話就加上分類
   }
   try {
-    const total = await Animation.countDocuments();
+    const total = await Animation.countDocuments(query);
     const list = await Animation.find(query)
       .skip(skip)
       .limit(pageSize)
@@ -329,7 +329,7 @@ router.get('/list/', async (req, res) => {
       pageSize,
       currentPage: page,
       total,
-      totalPage: Math.ceil(list.length / pageSize),
+      totalPage: Math.ceil(total / pageSize),
     });
   } catch (err) {
     console.log(err);

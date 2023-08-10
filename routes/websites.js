@@ -321,7 +321,7 @@ router.get('/list/', async (req, res) => {
     };
   }
   try {
-    const total = await Website.countDocuments();
+    const total = await Website.countDocuments(query);
     const list = await Website.find(query)
       .skip(skip)
       .limit(pageSize)
@@ -341,7 +341,7 @@ router.get('/list/', async (req, res) => {
       pageSize,
       currentPage: page,
       total,
-      totalPage: Math.ceil(list.length / pageSize),
+      totalPage: Math.ceil(total / pageSize),
     });
   } catch (err) {
     console.log(err);

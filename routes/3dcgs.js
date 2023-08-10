@@ -320,7 +320,7 @@ router.get('/list/', async (req, res) => {
     };
   }
   try {
-    const total = await ThreeDCG.countDocuments();
+    const total = await ThreeDCG.countDocuments(query);
     const list = await ThreeDCG.find(query)
       .skip(skip)
       .limit(pageSize)
@@ -338,7 +338,7 @@ router.get('/list/', async (req, res) => {
       pageSize,
       currentPage: page,
       total,
-      totalPage: Math.ceil(list.length / pageSize),
+      totalPage: Math.ceil(total / pageSize),
     });
   } catch (err) {
     console.log(err);
