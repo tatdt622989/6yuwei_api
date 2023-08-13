@@ -228,7 +228,10 @@ router.get('/loginStatus/', async (req, res) => {
     });
     return null;
   }
-  return res.status(403).send('Please login first');
+  return res.json({
+    status: 403,
+    msg: 'Not logged in yet',
+  });
 });
 
 // 取得特定用戶資料

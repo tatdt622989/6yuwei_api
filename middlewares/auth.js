@@ -6,6 +6,7 @@ const publicRoutes = [
   '/login/',
   '/signup/',
   '/logout/',
+  '/loginStatus/',
   '/chat/',
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/list/',
@@ -18,6 +19,10 @@ const publicRoutes = [
   '/websites/category/',
   '/3dcgs/category/',
   '/animations/category/',
+  '/components/[0-9a-fA-F]{24}/',
+  '/components/types/',
+  '/components/css/[a-zA-Z0-9-]+.css/',
+  '/components/sandbox/',
 ];
 
 async function verifyToken(req, res, next) {
