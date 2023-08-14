@@ -23,6 +23,8 @@ const publicRoutes = [
   '/components/types/',
   '/components/css/[a-zA-Z0-9-]+.css/',
   '/components/sandbox/',
+  '/components/list/',
+  '/components/screenshot/[a-zA-Z0-9-]+.png',
 ];
 
 async function verifyToken(req, res, next) {

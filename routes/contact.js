@@ -83,8 +83,7 @@ router.post('/', upload.none(), async (req, res) => {
     };
 
     await new Promise((resolve, reject) => {
-      apiInstance.sendTransacEmail(sendSmtpEmail).then((data) => {
-        console.log(`API called successfully. Returned data: ${data}`);
+      apiInstance.sendTransacEmail(sendSmtpEmail).then(() => {
         resolve();
       }, (error) => {
         console.error(error);

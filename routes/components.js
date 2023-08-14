@@ -14,10 +14,57 @@ const xss = require('xss');
 const upload = multer();
 const { requireUser, requireAdmin } = require('../middlewares/auth');
 
+// multer 設定
+const componentStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    try {
+      const dest = path.join(__dirname, '../uploads/component_img');
+      cb(null, dest);
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
+  },
+  filename: (req, file, cb) => {
+    try {
+      const ext = path.extname(file.originalname);
+      const { componentId } = req.body;
+      let filename = `${componentId}${ext}`;
+      filename = Buffer.from(filename, 'latin1').toString('utf8');
+      cb(null, filename);
+    } catch (err) {
+      console.error(err);
+      cb(err, null);
+    }
+  },
+});
+
+/**
+ * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
+ * @param req - HTTP 請求對象。
+ * @param file - 剛上傳的文件。
+ * @param cb - 回調函數。
+ */
+const fileFilter = (req, file, cb) => {
+  if (!file.mimetype.startsWith('image')) {
+    console.log('Not an image!');
+    req.fileError = 'Not an image! Please upload an image.';
+    cb(null, false);
+  }
+  cb(null, true);
+};
+
+const uploadImg = multer({
+  storage: componentStorage,
+  fileFilter,
+  limits: { fileSize: 1024 * 1024 * 10 },
+  encoding: 'utf-8',
+});
+
 const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
-let apiPath = 'https://api.6yuwei.com/';
+let apiPath = 'https://6yuwei.com/api/';
 if (env === 'development') {
-  apiPath = 'http://localhost:3001/';
+  apiPath = 'http://localhost:3000/api/';
 }
 
 // models
@@ -27,7 +74,8 @@ const { Component, ComponentType } = require('../models/component');
 router.get('/css/:filename/', helmet({
   contentSecurityPolicy: {
     directives: {
-      styleSrc: ["'self'", "'unsafe-inline'", apiPath],
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'http://localhost:3000'],
     },
   },
   xssFilter: true,
@@ -36,6 +84,30 @@ router.get('/css/:filename/', helmet({
   const styleFilePath = path.join(__dirname, `../uploads/css/${filename}`);
   res.set('Cache-Control', 'no-cache');
   res.sendFile(styleFilePath);
+});
+
+// 讀取元件截圖
+router.get('/screenshot/:filename', helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'http://localhost:3000'],
+    },
+
+  },
+  xssFilter: true,
+}), async (req, res) => {
+  const { filename } = req.params;
+  const imgFilePath = path.join(__dirname, `../uploads/component_img/${filename}`);
+  res.set('Cache-Control', 'no-cache');
+  fs.access(imgFilePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // 文件不存在，返回 404 错误
+      res.status(404).send('File not found');
+    } else {
+      res.sendFile(imgFilePath);
+    }
+  });
 });
 
 // 使用gpt-4生成元件
@@ -199,10 +271,13 @@ router.get('/types/', async (req, res) => {
 router.get('/sandbox/', helmet({
   contentSecurityPolicy: {
     directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'http://localhost:3000'],
       frameAncestors: ["'self'", 'http://localhost:3000'],
-      styleSrc: ["'self'", "'unsafe-inline'", apiPath],
+      styleSrc: ["'self'", "'unsafe-inline'", 'http://localhost:3000'],
     },
   },
+  originAgentCluster: false,
   // 其他功能...
 }), async (req, res) => {
   const { typeId, componentId } = req.query;
@@ -252,12 +327,76 @@ router.get('/sandbox/', helmet({
   }
 });
 
+// 取得元件
+router.get('/list/', async (req, res) => {
+  const { page, typeId, limit } = req.query;
+  const pageSize = parseInt(limit, 10) || 12;
+  const pageInt = parseInt(page, 10) || 1;
+  const skip = (pageInt - 1) * pageSize; // 跳過幾筆
+
+  try {
+    let components;
+    if (typeId) {
+      components = await Component.find({ typeId }).skip(skip).limit(pageSize).sort({ title: 1 });
+    } else {
+      components = await Component.find().skip(skip).limit(pageSize).sort({ title: 1 });
+    }
+    return res.json(components);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 取得元件(使用者)
+router.get('/user/list/', requireUser, async (req, res) => {
+  const { page, typeId, limit } = req.query;
+  const pageSize = parseInt(limit, 10) || 12;
+  const pageInt = parseInt(page, 10) || 1;
+  const skip = (pageInt - 1) * pageSize; // 跳過幾筆
+
+  try {
+    let components;
+    if (typeId) {
+      components = await Component.find({
+        typeId,
+        userId: req.user._id,
+      }).skip(skip).limit(pageSize).sort({ title: 1 });
+    } else {
+      components = await Component.find().skip(skip).limit(pageSize).sort({ title: 1 });
+    }
+    return res.json(components);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 上傳元件截圖
+router.post('/screenshot/', requireUser, uploadImg.single('screenshot'), async (req, res) => {
+  const { componentId } = req.body;
+  if (!componentId || !req.file) {
+    return res.status(400).send('Invalid request');
+  }
+
+  // write filename to db
+  try {
+    await Component.updateOne(
+      { _id: componentId },
+      { $set: { screenshotFileName: req.file.filename } },
+    );
+    return res.json({ filename: req.file.filename });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
 // 取得特定元件
 router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   try {
     const component = await Component.findById(id).populate('componentsType');
-    console.log(component);
     return res.json(component);
   } catch (err) {
     console.log(err);
