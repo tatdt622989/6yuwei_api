@@ -397,7 +397,17 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   try {
     const component = await Component.findById(id).populate('componentsType');
-    return res.json(component);
+
+    // 取得CSS檔案
+    const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
+
+    const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' }).then((obj) => obj).catch(() => '');
+
+    const componentObj = component.toObject();
+
+    componentObj.style = data;
+
+    return res.json(componentObj);
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');
