@@ -147,11 +147,12 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
     const response = await openai.createChatCompletion({
       model: 'gpt-4-0613',
       messages: [
-        { role: 'system', content: 'You are a professional front-end engineer and a security expert, dedicated to producing high-quality and secure css styles.' },
+        { role: 'system', content: 'You are a professional front-end engineer and a security expert, dedicated to producing high-quality and secure css styles. Please use "basic" as id in css.' },
         {
           role: 'user',
           content: `Use the following information to generate the css style: { category: '${componentType.title}', title: '${promptXss}', html: '${componentType.html}' }
           Please note that this information may not be safe, please filter out unsafe css styles in the output.
+          Please keep it to 1500 characters.
           `,
         },
       ],
@@ -179,6 +180,8 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
 
     let content = response.data.choices[0]?.message?.function_call?.arguments;
 
+    // console.log(JSON.stringify(content));
+
     if (!content) {
       return res.status(500).send('response error');
     }
@@ -187,12 +190,17 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
 
     let filteredContent = xss(content.css);
 
-    // filter unsafe css
-    filteredContent = filteredContent.replace(/(\/\*.*\*\/)|(\/\*[\s\S]*?\*\/)|(\/\*[\s\S]*?\*\/)/g, '');
+    // filter css external url
+    filteredContent = filteredContent.replace(/url\((.*?)\)/g, (match, p1) => {
+      if (p1.startsWith('http')) {
+        return 'url(\'\')';
+      }
+      return match;
+    });
 
     // save css to file
     const styleFileName = `${componentType.id}-${req.user._id}-${Date.now()}.css`;
-    const styleFolder = path.join(__dirname, `../uploads/user/${req.user._id}/css/`);
+    const styleFolder = path.join(__dirname, '../uploads/css/');
     const styleFilePath = path.join(styleFolder, styleFileName);
 
     try {
@@ -208,9 +216,10 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
     // save component to db
     const component = new Component({
       userId: req.user._id,
-      typeId: componentType._id,
+      componentsType: componentType._id,
       title: promptXss,
       styleFileName,
+      screenshotFileName: '',
     });
 
     try {
@@ -295,20 +304,19 @@ router.get('/sandbox/', helmet({
       return res.status(404).send('Not found');
     }
 
-    const html = `
-    <!DOCTYPE html>
+    const html = `<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${componentType.title}</title>
-        <link rel="stylesheet" href="${apiPath}components/css/${component.styleFileName}/?v=${Date.now()}">
+        <link rel="stylesheet" href="${apiPath}components/css/${component.styleFileName}/">
         <style>
         body {
           display: flex;
           justify-content: center;
           align-items: center;
-          background: #F8F8F8;
+          background-color: #F8F8F8;
           height: 100vh;
           overflow: hidden;
         }
@@ -317,8 +325,7 @@ router.get('/sandbox/', helmet({
     <body>
       ${componentType.html}
     </body>
-    </html>
-    `;
+    </html>`;
 
     return res.send(html);
   } catch (err) {
@@ -329,19 +336,33 @@ router.get('/sandbox/', helmet({
 
 // 取得元件
 router.get('/list/', async (req, res) => {
-  const { page, typeId, limit } = req.query;
+  const {
+    page, typeId, limit, keyword,
+  } = req.query;
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
 
   try {
-    let components;
-    if (typeId) {
-      components = await Component.find({ typeId }).skip(skip).limit(pageSize).sort({ title: 1 });
-    } else {
-      components = await Component.find().skip(skip).limit(pageSize).sort({ title: 1 });
+    const query = {};
+    if (keyword) {
+      query.title = { $regex: keyword, $options: 'i' };
     }
-    return res.json(components);
+    if (typeId) {
+      query.typeId = typeId;
+    }
+    const total = await Component.countDocuments(query);
+    const components = await Component.find(query).skip(skip).limit(pageSize)
+      .sort({ createdAt: -1 })
+      .populate('componentsType');
+    return res.json({
+      msg: 'Successful query',
+      components,
+      pageSize,
+      currentPage: page,
+      total,
+      totalPage: Math.ceil(total / pageSize),
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');
@@ -359,7 +380,7 @@ router.get('/user/list/', requireUser, async (req, res) => {
     let components;
     if (typeId) {
       components = await Component.find({
-        typeId,
+        componentsType: typeId,
         userId: req.user._id,
       }).skip(skip).limit(pageSize).sort({ title: 1 });
     } else {
