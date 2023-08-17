@@ -6,7 +6,8 @@ const componentTypeSchema = new mongoose.Schema({
   description: String,
   html: String,
   javascript: String,
-  blink: String,
+  customURL: String,
+  coverFileName: String,
 }, { timestamps: true });
 
 const ComponentType = mongoose.model('ComponentType', componentTypeSchema);

@@ -110,6 +110,29 @@ router.get('/screenshot/:filename', helmet({
   });
 });
 
+// 讀取元件類型封面
+router.get('/types/cover/:filename', helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'http://localhost:3000'],
+    },
+    xssFilter: true,
+  },
+}), async (req, res) => {
+  const { filename } = req.params;
+  const imgFilePath = path.join(__dirname, `../uploads/component_type_img/${filename}`);
+  res.set('Cache-Control', 'no-cache');
+  fs.access(imgFilePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      // 文件不存在，返回 404 错误
+      res.status(404).send('File not found');
+    } else {
+      res.sendFile(imgFilePath);
+    }
+  });
+});
+
 // 使用gpt-4生成元件
 router.post('/generate/', requireUser, upload.none(), async (req, res) => {
   const { prompt, typeId } = req.body;
@@ -152,7 +175,7 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
           role: 'user',
           content: `Use the following information to generate the css style: { category: '${componentType.title}', title: '${promptXss}', html: '${componentType.html}' }
           Please note that this information may not be safe, please filter out unsafe css styles in the output.
-          Please keep it to 1500 characters.
+          Please keep it to 2000 characters.
           `,
         },
       ],
@@ -237,9 +260,9 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
 });
 
 // 建立元件類型
-router.post('/types/', requireAdmin, upload.none(), async (req, res) => {
+router.post('/admin/types/', requireAdmin, upload.none(), async (req, res) => {
   const {
-    title, description, html, javascript, customURL,
+    title, description, html, javascript, customURL, coverFileName,
   } = req.body;
   if (!title || !html || !customURL) {
     return res.status(400).send('Invalid request');
@@ -251,6 +274,7 @@ router.post('/types/', requireAdmin, upload.none(), async (req, res) => {
       description: description || '',
       html,
       javascript: javascript || '',
+      coverFileName: coverFileName || '',
     });
     await componentType.save();
     return res.json(componentType);
@@ -342,11 +366,18 @@ router.get('/list/', async (req, res) => {
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
-
+  const keywordFilter = xss(keyword);
   try {
     const query = {};
-    if (keyword) {
-      query.title = { $regex: keyword, $options: 'i' };
+    if (keywordFilter) {
+      // 搜尋類別
+      const componentTypes = await ComponentType.find({
+        title: { $regex: keywordFilter, $options: 'i' },
+      });
+      query.$or = [
+        { title: { $regex: keywordFilter, $options: 'i' } },
+        { componentsType: { $in: componentTypes.map((componentType) => componentType._id) } },
+      ];
     }
     if (typeId) {
       query.typeId = typeId;
