@@ -61,21 +61,20 @@ const upload = multer({
 
 // 註冊
 router.post('/signup/', async (req, res) => {
+  const { username, email, password } = req.body;
   if (
-    !req.body
-    || !req.body.username
-    || !req.body.password
-    || !req.body.email
+    (username && validator.isEmpty(username))
+    || (email && validator.isEmpty(email))
+    || (password && validator.isEmpty(password))
   ) {
     return res.status(400).send('Please fill in the complete information');
   }
 
-  const {
-    username, password, email, phone,
-  } = req.body;
+  if (!validator.isEmail(email)) {
+    return res.status(400).send('Please enter a valid email address');
+  }
 
   // 檢查用戶是否存在
-
   const existUser = await User.findOne({ email });
   if (existUser) {
     return res.status(400).send('User already exists');
@@ -85,7 +84,7 @@ router.post('/signup/', async (req, res) => {
   const user = new User({
     username,
     email,
-    phone,
+    phone: '',
     password,
   });
 
@@ -148,10 +147,15 @@ router.post('/login/', async (req, res) => {
       return res.json({
         msg: 'Login successful',
         user: {
-          id: user.id,
+          _id: user.id,
           username: user.username,
           email: user.email,
           permissions: user.permissions,
+          photo: user.photo,
+          phone: user.phone ?? '',
+          country: user.country ?? '',
+          birth: user.birth ?? '',
+          createdAt: user.createdAt,
         },
       });
     }

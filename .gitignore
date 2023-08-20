@@ -3,3 +3,4 @@ node_modules
 uploads
 output.log
 ecosystem.config.js
+*.zip

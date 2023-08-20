@@ -20,6 +20,7 @@ const componentSchema = new mongoose.Schema({
   componentsType: { type: mongoose.Schema.Types.ObjectId, ref: 'ComponentType' },
   title: String,
   styleFileName: String,
+  // style: String,
   screenshotFileName: String,
 }, { timestamps: true });
 

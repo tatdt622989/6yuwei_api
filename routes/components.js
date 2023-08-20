@@ -203,8 +203,6 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
 
     let content = response.data.choices[0]?.message?.function_call?.arguments;
 
-    // console.log(JSON.stringify(content));
-
     if (!content) {
       return res.status(500).send('response error');
     }
@@ -242,6 +240,7 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
       componentsType: componentType._id,
       title: promptXss,
       styleFileName,
+      // style: filteredContent,
       screenshotFileName: '',
     });
 
@@ -283,6 +282,8 @@ router.post('/admin/types/', requireAdmin, upload.none(), async (req, res) => {
     return res.status(500).send(err);
   }
 });
+
+// 修改元件類型
 
 // 取得元件類型
 router.get('/types/', async (req, res) => {
@@ -400,6 +401,28 @@ router.get('/list/', async (req, res) => {
   }
 });
 
+// 刪除元件
+router.delete('/:id/', requireUser, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const component = await Component.findById(id);
+    if (!component) {
+      return res.status(404).send('Not found');
+    }
+    // 如果是管理員或是元件擁有者，則可以刪除
+    if (req.user.permissions.includes('admin') || component.userId.toString() === req.user._id.toString()) {
+      await component.remove();
+      return res.json({
+        msg: 'Successful delete',
+      });
+    }
+    return res.status(403).send('Unauthorized');
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
 // 取得元件(使用者)
 router.get('/user/list/', requireUser, async (req, res) => {
   const { page, typeId, limit } = req.query;
@@ -415,7 +438,9 @@ router.get('/user/list/', requireUser, async (req, res) => {
         userId: req.user._id,
       }).skip(skip).limit(pageSize).sort({ title: 1 });
     } else {
-      components = await Component.find().skip(skip).limit(pageSize).sort({ title: 1 });
+      components = await Component.find({
+        userId: req.user._id,
+      }).skip(skip).limit(pageSize).sort({ title: 1 });
     }
     return res.json(components);
   } catch (err) {
@@ -450,16 +475,21 @@ router.get('/:id/', async (req, res) => {
   try {
     const component = await Component.findById(id).populate('componentsType');
 
-    // 取得CSS檔案
-    const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
+    if (!component) {
+      return res.status(404).send('Not found');
+    }
 
-    const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' }).then((obj) => obj).catch(() => '');
+    // 暫時將所有css資料存入資料庫
+    // if (!component.style) {
+    //   // 取得CSS檔案
+    //   const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
+    //   const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' })
+    // .then((obj) => obj).catch(() => '');
+    //   component.style = data;
+    //   await component.save();
+    // }
 
-    const componentObj = component.toObject();
-
-    componentObj.style = data;
-
-    return res.json(componentObj);
+    return res.json(component);
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');
