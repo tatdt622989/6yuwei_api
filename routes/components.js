@@ -425,24 +425,48 @@ router.delete('/:id/', requireUser, async (req, res) => {
 
 // 取得元件(使用者)
 router.get('/user/list/', requireUser, async (req, res) => {
-  const { page, typeId, limit } = req.query;
+  const {
+    page, typeId, limit, keyword,
+  } = req.query;
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
+  const keywordFilter = xss(keyword);
 
   try {
     let components;
-    if (typeId) {
-      components = await Component.find({
-        componentsType: typeId,
-        userId: req.user._id,
-      }).skip(skip).limit(pageSize).sort({ title: 1 });
-    } else {
-      components = await Component.find({
-        userId: req.user._id,
-      }).skip(skip).limit(pageSize).sort({ title: 1 });
+    const query = {};
+    if (keywordFilter) {
+      // 搜尋類別
+      const componentTypes = await ComponentType.find({
+        title: { $regex: keywordFilter, $options: 'i' },
+      });
+      query.$or = [
+        { title: { $regex: keywordFilter, $options: 'i' } },
+        { componentsType: { $in: componentTypes.map((componentType) => componentType._id) } },
+      ];
     }
-    return res.json(components);
+    if (typeId) {
+      query.componentsType = typeId;
+      query.userId = req.user._id;
+      components = await Component.find(query).skip(skip).limit(pageSize).sort({ title: 1 });
+    } else {
+      query.userId = req.user._id;
+      components = await Component.find(query)
+        .skip(skip)
+        .limit(pageSize)
+        .sort({ title: 1 })
+        .populate('componentsType');
+    }
+    const total = await Component.countDocuments(query);
+    return res.json({
+      msg: 'Successful query',
+      components,
+      pageSize,
+      currentPage: page,
+      total,
+      totalPage: Math.ceil(total / pageSize),
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');
