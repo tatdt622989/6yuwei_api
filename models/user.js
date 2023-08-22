@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   birth: Date,
   balance: { type: Number, default: 0 },
   permissions: { type: String, default: 'general', enum: ['general', 'admin'] },
+  favoriteComponents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Component' }],
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

@@ -69,6 +69,7 @@ if (env === 'development') {
 
 // models
 const { Component, ComponentType } = require('../models/component');
+const User = require('../models/user');
 
 // 讀取css檔案
 router.get('/css/:filename/', helmet({
@@ -360,7 +361,7 @@ router.get('/sandbox/', helmet({
 });
 
 // 取得元件
-router.get('/list/', async (req, res) => {
+router.get('/', async (req, res) => {
   const {
     page, typeId, limit, keyword,
   } = req.query;
@@ -424,7 +425,7 @@ router.delete('/:id/', requireUser, async (req, res) => {
 });
 
 // 取得元件(使用者)
-router.get('/user/list/', requireUser, async (req, res) => {
+router.get('/user/', requireUser, async (req, res) => {
   const {
     page, typeId, limit, keyword,
   } = req.query;
@@ -514,6 +515,91 @@ router.get('/:id/', async (req, res) => {
     // }
 
     return res.json(component);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 將元件加入最愛
+router.post('/favorites/', requireUser, upload.none(), async (req, res) => {
+  const { componentId } = req.body;
+  if (!componentId) {
+    return res.status(400).send('Invalid request');
+  }
+  try {
+    const component = await Component.findById(componentId);
+    if (!component) {
+      return res.status(404).send('Not found');
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).send('Not found');
+    }
+    if (user.favoriteComponents.includes(componentId)) {
+      return res.status(400).send('Already added');
+    }
+    user.favoriteComponents.push(componentId);
+    await user.save();
+    return res.json({
+      msg: 'Successful add',
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 將元件從最愛移除
+router.delete('/favorites/:id/', requireUser, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).send('Not found');
+    }
+    if (!user.favoriteComponents.includes(id)) {
+      return res.json({
+        msg: 'Not found',
+      });
+    }
+    user.favoriteComponents = user.favoriteComponents
+      .filter((componentId) => componentId.toString() !== id);
+    await user.save();
+    return res.json({
+      msg: 'Successful delete',
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 取得使用者所有最愛元件
+router.get('/favorites/', requireUser, async (req, res) => {
+  const { page } = req.query;
+  const pageSize = 12;
+  const pageInt = parseInt(page, 10) || 1;
+  const skip = (pageInt - 1) * pageSize; // 跳過幾筆
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).send('Not found');
+    }
+    const total = user.favoriteComponents.length;
+    const components = await Component.find({ _id: { $in: user.favoriteComponents } })
+      .skip(skip)
+      .limit(pageSize)
+      .sort({ title: 1 })
+      .populate('componentsType');
+    return res.json({
+      msg: 'Successful query',
+      components,
+      pageSize,
+      currentPage: page,
+      total,
+      totalPage: Math.ceil(total / pageSize),
+    });
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');

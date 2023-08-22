@@ -23,7 +23,7 @@ const publicRoutes = [
   '/components/types/',
   '/components/css/[a-zA-Z0-9-]+.css/',
   '/components/sandbox/',
-  '/components/list/',
+  '/components/',
   '/components/screenshot/[a-zA-Z0-9-]+.png',
   '/components/types/cover/[a-zA-Z0-9-]+.png',
 ];
