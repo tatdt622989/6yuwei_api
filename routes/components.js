@@ -494,34 +494,7 @@ router.post('/screenshot/', requireUser, uploadImg.single('screenshot'), async (
   }
 });
 
-// 取得特定元件
-router.get('/:id/', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const component = await Component.findById(id).populate('componentsType');
-
-    if (!component) {
-      return res.status(404).send('Not found');
-    }
-
-    // 暫時將所有css資料存入資料庫
-    // if (!component.style) {
-    //   // 取得CSS檔案
-    //   const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
-    //   const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' })
-    // .then((obj) => obj).catch(() => '');
-    //   component.style = data;
-    //   await component.save();
-    // }
-
-    return res.json(component);
-  } catch (err) {
-    console.log(err);
-    return res.status(500).send('error');
-  }
-});
-
-// 將元件加入最愛
+// 將元件加入最愛，如果已經加入則移除
 router.post('/favorites/', requireUser, upload.none(), async (req, res) => {
   const { componentId } = req.body;
   if (!componentId) {
@@ -537,9 +510,15 @@ router.post('/favorites/', requireUser, upload.none(), async (req, res) => {
       return res.status(404).send('Not found');
     }
     if (user.favoriteComponents.includes(componentId)) {
-      return res.status(400).send('Already added');
+      user.favoriteComponents = user.favoriteComponents
+        .filter((id) => id.toString() !== componentId);
+      await user.save();
+      return res.json({
+        msg: 'Successful delete',
+      });
     }
     user.favoriteComponents.push(componentId);
+
     await user.save();
     return res.json({
       msg: 'Successful add',
@@ -587,7 +566,8 @@ router.get('/favorites/', requireUser, async (req, res) => {
       return res.status(404).send('Not found');
     }
     const total = user.favoriteComponents.length;
-    const components = await Component.find({ _id: { $in: user.favoriteComponents } })
+    const components = await Component
+      .find({ _id: { $in: user.favoriteComponents } })
       .skip(skip)
       .limit(pageSize)
       .sort({ title: 1 })
@@ -600,6 +580,50 @@ router.get('/favorites/', requireUser, async (req, res) => {
       total,
       totalPage: Math.ceil(total / pageSize),
     });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 取得使用者所有最愛元件id
+router.get('/favorites/id/', requireUser, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).send('Not found');
+    }
+    return res.json({
+      msg: 'Successful query',
+      idList: user.favoriteComponents,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
+// 取得特定元件
+router.get('/:id/', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const component = await Component.findById(id).populate('componentsType');
+
+    if (!component) {
+      return res.status(404).send('Not found');
+    }
+
+    // 暫時將所有css資料存入資料庫
+    // if (!component.style) {
+    //   // 取得CSS檔案
+    //   const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
+    //   const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' })
+    // .then((obj) => obj).catch(() => '');
+    //   component.style = data;
+    //   await component.save();
+    // }
+
+    return res.json(component);
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');

@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
   photo: String,
   country: String,
   birth: Date,
-  balance: { type: Number, default: 0 },
+  balance: { type: Number, default: 30 },
   permissions: { type: String, default: 'general', enum: ['general', 'admin'] },
   favoriteComponents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Component' }],
 }, { timestamps: true });

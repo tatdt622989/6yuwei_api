@@ -219,6 +219,7 @@ router.get('/loginStatus/', async (req, res) => {
             country: user.country ?? '',
             birth: user.birth ?? '',
             createdAt: user.createdAt,
+            balance: user.balance,
           },
         });
       }
