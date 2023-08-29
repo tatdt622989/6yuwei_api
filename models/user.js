@@ -51,4 +51,16 @@ userSchema.methods.generateAuthToken = function () {
 
 const User = mongoose.model('User', userSchema);
 
-module.exports = User;
+const userTransitionSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  amount: Number,
+  type: String,
+  ip: String,
+}, { timestamps: true });
+
+const UserTransition = mongoose.model('UserTransition', userTransitionSchema);
+
+module.exports = {
+  User,
+  UserTransition,
+};

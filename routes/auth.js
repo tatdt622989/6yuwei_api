@@ -6,8 +6,10 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
+const { requireUser, requireAdmin } = require('../middlewares/auth');
+
 // models
-const User = require('../models/user');
+const { User } = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
 
 // multer 設定
@@ -341,6 +343,15 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
     return null;
   }
   return res.status(403).send('Please login first');
+});
+
+// 取得用戶餘額
+router.get('/user/balance/', requireUser, async (req, res) => {
+  const user = await User.findById(req.user.userId);
+  return res.json({
+    msg: 'Success',
+    balance: user.balance,
+  });
 });
 
 // hash generator

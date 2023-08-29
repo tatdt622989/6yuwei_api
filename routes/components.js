@@ -5,6 +5,7 @@ const express = require('express');
 const helmet = require('helmet');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 
 const env = process.env.NODE_ENV;
 const router = express.Router();
@@ -69,7 +70,7 @@ if (env === 'development') {
 
 // models
 const { Component, ComponentType } = require('../models/component');
-const User = require('../models/user');
+const { User, UserTransition } = require('../models/user');
 
 // 讀取css檔案
 router.get('/css/:filename/', helmet({
@@ -126,7 +127,7 @@ router.get('/types/cover/:filename', helmet({
   res.set('Cache-Control', 'no-cache');
   fs.access(imgFilePath, fs.constants.F_OK, (err) => {
     if (err) {
-      // 文件不存在，返回 404 错误
+      // 文件不存在，返回 404 錯誤
       res.status(404).send('File not found');
     } else {
       res.sendFile(imgFilePath);
@@ -144,6 +145,37 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
 
   if (prompt.length > 150) {
     return res.status(400).send('Prompt too long');
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 判斷點數是否足夠
+    if (req.user.balance < 1) {
+      return res.status(400).send('Insufficient balance');
+    }
+
+    // 扣除點數
+    const user = await User.findById(req.user._id).session(session);
+    user.balance -= 1;
+    await user.save();
+
+    // 增加交易記錄
+    const transaction = new UserTransition({
+      userId: req.user._id,
+      amount: -1,
+      type: 'component generate',
+      ip: req.ip,
+    });
+    await transaction.save();
+
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    return res.status(500).send('Transaction failed');
   }
 
   // prompt xss filter
@@ -402,28 +434,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 刪除元件
-router.delete('/:id/', requireUser, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const component = await Component.findById(id);
-    if (!component) {
-      return res.status(404).send('Not found');
-    }
-    // 如果是管理員或是元件擁有者，則可以刪除
-    if (req.user.permissions.includes('admin') || component.userId.toString() === req.user._id.toString()) {
-      await component.remove();
-      return res.json({
-        msg: 'Successful delete',
-      });
-    }
-    return res.status(403).send('Unauthorized');
-  } catch (err) {
-    console.log(err);
-    return res.status(500).send('error');
-  }
-});
-
 // 取得元件(使用者)
 router.get('/user/', requireUser, async (req, res) => {
   const {
@@ -603,6 +613,28 @@ router.get('/favorites/id/', requireUser, async (req, res) => {
   }
 });
 
+// 刪除元件
+router.delete('/:id/', requireUser, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const component = await Component.findById(id);
+    if (!component) {
+      return res.status(404).send('Not found');
+    }
+    // 如果是管理員或是元件擁有者，則可以刪除
+    if (req.user.permissions.includes('admin') || component.userId.toString() === req.user._id.toString()) {
+      await component.remove();
+      return res.json({
+        msg: 'Successful delete',
+      });
+    }
+    return res.status(403).send('Unauthorized');
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
+});
+
 // 取得特定元件
 router.get('/:id/', async (req, res) => {
   const { id } = req.params;
@@ -623,7 +655,13 @@ router.get('/:id/', async (req, res) => {
     //   await component.save();
     // }
 
-    return res.json(component);
+    // 取得CSS檔案
+    const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
+    const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' }).then((obj) => obj).catch(() => '');
+    const componentObj = component.toObject();
+    componentObj.style = data;
+
+    return res.json(componentObj);
   } catch (err) {
     console.log(err);
     return res.status(500).send('error');

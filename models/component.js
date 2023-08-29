@@ -12,8 +12,6 @@ const componentTypeSchema = new mongoose.Schema({
 
 const ComponentType = mongoose.model('ComponentType', componentTypeSchema);
 
-exports.ComponentType = ComponentType;
-
 // 元件
 const componentSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -25,4 +23,7 @@ const componentSchema = new mongoose.Schema({
 
 const Component = mongoose.model('Component', componentSchema);
 
-exports.Component = Component;
+module.exports = {
+  ComponentType,
+  Component,
+};

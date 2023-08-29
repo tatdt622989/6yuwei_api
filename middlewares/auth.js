@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const TokenBlackList = require('../models/token_blackList');
-const User = require('../models/user');
+const { User } = require('../models/user');
 
 const publicRoutes = [
   '/login/',
