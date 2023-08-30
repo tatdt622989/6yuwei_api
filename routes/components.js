@@ -150,33 +150,53 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
-  try {
-    // 判斷點數是否足夠
-    if (req.user.balance < 1) {
-      return res.status(400).send('Insufficient balance');
-    }
+  // 暫時不使用交易功能
+  // try {
+  //   // 判斷點數是否足夠
+  //   if (req.user.balance < 1) {
+  //     return res.status(400).send('Insufficient balance');
+  //   }
 
-    // 扣除點數
-    const user = await User.findById(req.user._id).session(session);
-    user.balance -= 1;
-    await user.save();
+  //   // 扣除點數
+  //   const user = await User.findById(req.user._id).session(session);
+  //   user.balance -= 1;
+  //   await user.save();
 
-    // 增加交易記錄
-    const transaction = new UserTransition({
-      userId: req.user._id,
-      amount: -1,
-      type: 'component generate',
-      ip: req.ip,
-    });
-    await transaction.save();
+  //   // 增加交易記錄
+  //   const transaction = new UserTransition({
+  //     userId: req.user._id,
+  //     amount: -1,
+  //     type: 'component generate',
+  //     ip: req.ip,
+  //   });
+  //   await transaction.save();
 
-    await session.commitTransaction();
-    session.endSession();
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).send('Transaction failed');
+  //   await session.commitTransaction();
+  //   session.endSession();
+  // } catch (error) {
+  //   await session.abortTransaction();
+  //   session.endSession();
+  //   return res.status(500).send('Transaction failed');
+  // }
+
+  // 判斷點數是否足夠
+  if (req.user.balance < 1) {
+    return res.status(400).send('Insufficient balance');
   }
+
+  // 扣除點數
+  const user = await User.findById(req.user._id);
+  user.balance -= 1;
+  await user.save();
+
+  // 增加交易記錄
+  const transaction = new UserTransition({
+    userId: req.user._id,
+    amount: -1,
+    type: 'component generate',
+    ip: req.ip,
+  });
+  await transaction.save();
 
   // prompt xss filter
   const promptXss = xss(prompt);

@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 const express = require('express');
 
 const router = express.Router();
@@ -347,7 +348,7 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
 
 // 取得用戶餘額
 router.get('/user/balance/', requireUser, async (req, res) => {
-  const user = await User.findById(req.user.userId);
+  const user = await User.findById(req.user._id);
   return res.json({
     msg: 'Success',
     balance: user.balance,
