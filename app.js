@@ -12,6 +12,7 @@ const animationsRouter = require('./routes/animations');
 const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const componentsRouter = require('./routes/components');
+const memberRouter = require('./routes/members');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
@@ -87,6 +88,7 @@ app.use('/animations/', animationsRouter);
 app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
 app.use('/components/', componentsRouter);
+app.use('/member/', memberRouter);
 
 // other routes..
 app.get('/', (req, res) => {

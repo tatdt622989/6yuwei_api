@@ -311,6 +311,17 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
   }
 });
 
+// 根據元件ID和prompt來修改已生成元件的樣式
+router.post('/generate/update/', requireUser, upload.none(), async (req, res) => {
+  const { prompt, componentId } = req.body;
+
+  if (!prompt || !componentId) {
+    return res.status(400).send('Invalid request');
+  }
+
+  return false;
+});
+
 // 建立元件類型
 router.post('/admin/types/', requireAdmin, upload.none(), async (req, res) => {
   const {
@@ -335,8 +346,6 @@ router.post('/admin/types/', requireAdmin, upload.none(), async (req, res) => {
     return res.status(500).send(err);
   }
 });
-
-// 修改元件類型
 
 // 取得元件類型
 router.get('/types/', async (req, res) => {
