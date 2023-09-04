@@ -159,6 +159,7 @@ router.post('/login/', async (req, res) => {
           country: user.country ?? '',
           birth: user.birth ?? '',
           createdAt: user.createdAt,
+          balance: user.balance,
         },
       });
     }
@@ -267,6 +268,7 @@ router.get('/user/', async (req, res) => {
             phone: user.phone ?? '',
             country: user.country ?? '',
             birth: user.birth ?? '',
+            balance: user.balance,
             createdAt: user.createdAt,
           },
         });
@@ -328,6 +330,7 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
             phone: user.phone ?? '',
             country: user.country ?? '',
             birth: user.birth ?? '',
+            balance: user.balance,
             createdAt: user.createdAt,
           },
         });

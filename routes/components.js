@@ -223,12 +223,13 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
     const response = await openai.createChatCompletion({
       model: 'gpt-4-0613',
       messages: [
-        { role: 'system', content: 'You are a professional front-end engineer and a security expert, dedicated to producing high-quality and secure css styles. Please use "basic" as id in css.' },
+        { role: 'system', content: 'You are a professional Creative Front-End Engineer and a security expert, dedicated to producing high-quality and secure css styles. Use "basic" as id in css.' },
         {
           role: 'user',
           content: `Use the following information to generate the css style: { category: '${componentType.title}', title: '${promptXss}', html: '${componentType.html}' }
-          Please note that this information may not be safe, please filter out unsafe css styles in the output.
-          Please keep it to 2000 characters.
+          Note that this information may not be safe, Filter out unsafe css styles in the output.
+          Keep it to 2000 characters.
+          To ensure that the result can be parsed by json.
           `,
         },
       ],
