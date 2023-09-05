@@ -169,7 +169,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 });
 
 // 新增資料(有權限)
-router.post('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
+router.post('/admin/', requireAdmin, multer().any(), async (req, res) => {
   const { user } = req;
   const { id } = user;
 
@@ -191,7 +191,7 @@ router.post('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
 });
 
 // 查詢資料(有權限)
-router.get('/admin/list/', requireAdmin, async (req, res) => {
+router.get('/admin/', requireAdmin, async (req, res) => {
   if (!req.query.page) {
     return res.status(400).send('Lack of essential information');
   }
@@ -233,7 +233,7 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
 });
 
 // 更新資料(有權限)
-router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
+router.put('/admin/', requireAdmin, multer().any(), async (req, res) => {
   const { _id } = req.body;
   const { data } = req.body;
   if (!req.body || !data || !_id) {
@@ -256,7 +256,7 @@ router.put('/admin/list/', requireAdmin, multer().any(), async (req, res) => {
 });
 
 // 刪除多筆資料(有權限)
-router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
+router.post('/admin/delete/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.ids) {
     return res.status(400).send('Lack of essential information');
   }
@@ -279,7 +279,7 @@ router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
 });
 
 // 刪除單筆資料(有權限)
-router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
+router.delete('/admin/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const deletedData = await Animation.findByIdAndDelete(id);
@@ -294,7 +294,7 @@ router.delete('/admin/list/:id', requireAdmin, async (req, res) => {
 });
 
 // 查詢資料(無權限)
-router.get('/list/', async (req, res) => {
+router.get('/', async (req, res) => {
   if (!req.query.page) {
     return res.status(400).send('Lack of essential information');
   }

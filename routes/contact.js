@@ -133,7 +133,7 @@ router.post('/', upload.none(), async (req, res) => {
 });
 
 // 列出資料(有權限)
-router.get('/admin/list/', requireAdmin, async (req, res) => {
+router.get('/admin/', requireAdmin, async (req, res) => {
   if (!req.query.page) {
     return res.status(400).send('Lack of essential information');
   }
@@ -169,7 +169,7 @@ router.get('/admin/list/', requireAdmin, async (req, res) => {
 });
 
 // 刪除多筆資料(有權限)
-router.post('/admin/list/delete/', requireAdmin, async (req, res) => {
+router.post('/admin/delete/', requireAdmin, async (req, res) => {
   if (!req.body || !req.body.ids) {
     return res.status(400).send('Lack of essential information');
   }

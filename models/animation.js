@@ -16,6 +16,7 @@ const animationSchema = new mongoose.Schema({
   visible: { type: Boolean, default: true },
   homepage: { type: Boolean, default: false },
   top: { type: Boolean, default: false },
+  sort: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const Animation = mongoose.model('Animation', animationSchema);

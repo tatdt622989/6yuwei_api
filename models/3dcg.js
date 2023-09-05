@@ -15,6 +15,7 @@ const threeDCGSchema = new mongoose.Schema({
   visible: { type: Boolean, default: true },
   homepage: { type: Boolean, default: false },
   top: { type: Boolean, default: false },
+  sort: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const ThreeDCG = mongoose.model('ThreeDCG', threeDCGSchema);

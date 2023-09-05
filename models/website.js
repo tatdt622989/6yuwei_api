@@ -15,6 +15,7 @@ const websiteSchema = new mongoose.Schema({
   visible: { type: Boolean, default: true },
   top: { type: Boolean, default: false },
   homepage: { type: Boolean, default: false },
+  sort: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const Website = mongoose.model('Website', websiteSchema);
