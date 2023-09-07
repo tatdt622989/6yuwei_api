@@ -210,7 +210,7 @@ router.get('/admin/', requireAdmin, async (req, res) => {
     })
       .skip(skip)
       .limit(pageSize)
-      .sort({ top: 'desc', createdAt: 'desc' })
+      .sort({ sort: 'asc', top: 'desc', createdAt: 'desc' })
       .populate({
         path: 'photos',
         options: {
@@ -267,11 +267,13 @@ router.put('/admin/multiple/', requireAdmin, async (req, res) => {
   }
 
   try {
-    const ids = data.map((item) => item._id);
-    await Website.updateMany(
-      { _id: { $in: ids } },
-      { $set: { ...data } },
-    );
+    const operations = data.map((item) => ({
+      updateOne: {
+        filter: { _id: item._id },
+        update: { $set: item },
+      },
+    }));
+    await Website.bulkWrite(operations);
     return res.json({
       msg: 'Successful update',
     });
