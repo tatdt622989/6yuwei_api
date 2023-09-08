@@ -210,7 +210,7 @@ router.get('/admin/', requireAdmin, async (req, res) => {
     })
       .skip(skip)
       .limit(pageSize)
-      .sort({ sort: 'asc', top: 'desc', createdAt: 'desc' })
+      .sort({ top: 'desc', sort: 'desc', createdAt: 'desc' })
       .populate({
         path: 'photos',
         options: {
@@ -353,7 +353,7 @@ router.get('/', async (req, res) => {
     const list = await Website.find(query)
       .skip(skip)
       .limit(pageSize)
-      .sort({ top: 'desc', updatedAt: sortBy })
+      .sort({ top: 'desc', sort: 'desc', updatedAt: sortBy })
       .populate({
         path: 'photos',
         options: {

@@ -210,7 +210,7 @@ router.get('/admin/', requireAdmin, async (req, res) => {
     })
       .skip(skip)
       .limit(pageSize)
-      .sort({ top: 'desc', createdAt: 'desc' })
+      .sort({ top: 'desc', sort: 'desc', createdAt: 'desc' })
       .populate({
         path: 'photos',
         options: {
@@ -248,6 +248,34 @@ router.put('/admin/', requireAdmin, multer().any(), async (req, res) => {
     return res.json({
       msg: 'Successful update',
       data: updatedThreeDCG,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('Failed to update');
+  }
+});
+
+// 更新多筆資料(有權限)
+router.put('/admin/multiple/', requireAdmin, async (req, res) => {
+  if (!req.body.data) {
+    return res.status(400).send('Lack of essential information');
+  }
+  const { data } = req.body;
+
+  if (!Array.isArray(data)) {
+    return res.status(400).send('data must be an array');
+  }
+
+  try {
+    const operations = data.map((item) => ({
+      updateOne: {
+        filter: { _id: item._id },
+        update: { $set: item },
+      },
+    }));
+    await ThreeDCG.bulkWrite(operations);
+    return res.json({
+      msg: 'Successful update',
     });
   } catch (err) {
     console.log(err);
@@ -324,7 +352,7 @@ router.get('/', async (req, res) => {
     const list = await ThreeDCG.find(query)
       .skip(skip)
       .limit(pageSize)
-      .sort({ top: 'desc', updatedAt: sortBy })
+      .sort({ top: 'desc', sort: 'desc', updatedAt: sortBy })
       .populate({
         path: 'photos',
         options: {
