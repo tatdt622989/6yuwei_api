@@ -1,19 +1,23 @@
 const mongoose = require('mongoose');
+const findOrCreate = require('mongoose-findorcreate');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true },
-  password: { type: String, required: true },
+  password: { type: String },
   email: { type: String, required: true, unique: true },
   phone: String,
   photo: String,
+  externalPhoto: String,
   country: String,
   birth: Date,
   balance: { type: Number, default: 30 },
   permissions: { type: String, default: 'general', enum: ['general', 'admin'] },
   favoriteComponents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Component' }],
 }, { timestamps: true });
+
+userSchema.plugin(findOrCreate);
 
 userSchema.pre('save', async function (next) {
   const user = this; // document

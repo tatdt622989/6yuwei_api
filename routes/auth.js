@@ -7,11 +7,32 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
+const passport = require('passport');
+
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { requireUser, requireAdmin } = require('../middlewares/auth');
 
 // models
 const { User } = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
+
+passport.use(new GoogleStrategy(
+  {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.FRONT_END_DOMAIN}/api/google/callback/`,
+  },
+  ((accessToken, refreshToken, profile, cb) => {
+    User.findOrCreate(
+      { email: profile.emails[0].value },
+      {
+        username: profile.displayName,
+        externalPhoto: profile.photos[0].value,
+      },
+      (err, user) => cb(err, user),
+    );
+  }),
+));
 
 // multer 設定
 const adminStorage = multer.diskStorage({
@@ -155,6 +176,7 @@ router.post('/login/', async (req, res) => {
           email: user.email,
           permissions: user.permissions,
           photo: user.photo,
+          externalPhoto: user.externalPhoto,
           phone: user.phone ?? '',
           country: user.country ?? '',
           birth: user.birth ?? '',
@@ -167,6 +189,24 @@ router.post('/login/', async (req, res) => {
   }
 
   return res.status(400).send('User does not exist');
+});
+
+// Google 登入
+router.get('/googleLogin/', passport.authenticate('google', { session: false, scope: ['email', 'profile'] }));
+
+// Google 登入 callback
+router.get('/google/callback/', passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONT_END_DOMAIN}/admin/login/` }), async (req, res) => {
+  const { user } = req;
+  // jwt token
+  const token = user.generateAuthToken();
+
+  res.cookie('access_token', token, {
+    httpOnly: true, // 只能在伺服器端讀取cookie
+    secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
+    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
+  });
+
+  res.redirect(`${process.env.FRONT_END_DOMAIN}/admin/account/`);
 });
 
 // 登出
@@ -219,6 +259,7 @@ router.get('/loginStatus/', async (req, res) => {
             email: user.email,
             permissions: user.permissions,
             photo: user.photo,
+            externalPhoto: user.externalPhoto,
             phone: user.phone ?? '',
             country: user.country ?? '',
             birth: user.birth ?? '',
@@ -327,6 +368,7 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
             email: user.email,
             permissions: user.permissions,
             photo: user.photo ?? '',
+            externalPhoto: user.externalPhoto ?? '',
             phone: user.phone ?? '',
             country: user.country ?? '',
             birth: user.birth ?? '',

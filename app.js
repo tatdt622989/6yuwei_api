@@ -88,7 +88,7 @@ app.use('/animations/', animationsRouter);
 app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
 app.use('/components/', componentsRouter);
-app.use('/member/', memberRouter);
+app.use('/members/', memberRouter);
 
 // other routes..
 app.get('/', (req, res) => {

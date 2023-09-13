@@ -26,6 +26,8 @@ const publicRoutes = [
   '/components/',
   '/components/screenshot/[a-zA-Z0-9-]+.png',
   '/components/types/cover/[a-zA-Z0-9-]+.png',
+  '/googleLogin/',
+  '/google/callback/',
 ];
 
 async function verifyToken(req, res, next) {
