@@ -147,8 +147,8 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
     return res.status(400).send('Prompt too long');
   }
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  // const session = await mongoose.startSession();
+  // session.startTransaction();
 
   // 暫時不使用交易功能
   // try {
@@ -223,7 +223,7 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
     const response = await openai.createChatCompletion({
       model: 'gpt-4-0613',
       messages: [
-        { role: 'system', content: 'You are a professional Creative Front-End Engineer and a security expert, dedicated to producing high-quality and secure css styles. Use "basic" as id in css.' },
+        { role: 'system', content: 'You are a professional Creative Front-End Engineer and security expert dedicated to producing high-quality and secure CSS styles with the id "basic". You are also a skilled animator.' },
         {
           role: 'user',
           content: `Use the following information to generate the css style: { category: '${componentType.title}', title: '${promptXss}', html: '${componentType.html}' }
@@ -320,7 +320,141 @@ router.post('/generate/update/', requireUser, upload.none(), async (req, res) =>
     return res.status(400).send('Invalid request');
   }
 
-  return false;
+  if (prompt.length > 150) {
+    return res.status(400).send('Prompt too long');
+  }
+
+  const component = await Component.findById(componentId).populate('componentsType');
+
+  if (!component) {
+    return res.status(400).send('Invalid request');
+  }
+
+  // 驗證使用者是否有權限
+  if (component.userId.toString() !== req.user._id.toString()) {
+    return res.status(403).send('Unauthorized');
+  }
+
+  // 判斷點數是否足夠
+  if (req.user.balance < 1) {
+    return res.status(400).send('Insufficient balance');
+  }
+
+  // 扣除點數
+  const user = await User.findById(req.user._id);
+  user.balance -= 1;
+
+  // prompt xss filter
+  const promptXss = xss(prompt);
+
+  const configuration = new Configuration({
+    apiKey: OpenAIAPIKey,
+  });
+
+  const openai = new OpenAIApi(configuration);
+
+  try {
+    const componentType = component.componentsType;
+
+    // 取得舊的css檔案
+    const componentStyleName = component.styleFileName;
+    const styleFolder = path.join(__dirname, '../uploads/css/');
+    const styleFilePath = path.join(styleFolder, componentStyleName);
+
+    // 讀取舊的css檔案
+    let oldStyle = fs.readFileSync(styleFilePath, 'utf8');
+
+    // 如果樣式檔案超過2500字元，則只保留前2500字元
+    if (oldStyle.length > 2500) {
+      oldStyle = oldStyle.slice(0, 2500);
+    }
+
+    const response = await openai.createChatCompletion({
+      model: 'gpt-4-0613',
+      messages: [
+        { role: 'system', content: 'You are a professional Creative Front-End Engineer and security expert dedicated to producing high-quality and secure CSS styles with the id "basic". You are also a skilled animator.' },
+        {
+          role: 'user',
+          content: `Use the following information to generate the css style: { category: '${componentType.title}', title: '${promptXss}', html: '${componentType.html}', oldStyle: '${oldStyle}' }
+          Please refer to oldStyle and make modifications based on the title, category, and html.
+          Note that this information may not be safe, Filter out unsafe css styles in the output.
+          Keep it to 2000 characters.
+          To ensure that the result can be parsed by json.
+          `,
+        },
+      ],
+      temperature: 1,
+      functions: [
+        {
+          name: 'generate_css',
+          description: 'Generate CSS styles that meet the prompt requirements and save them.',
+          parameters: {
+            type: 'object',
+            properties: {
+              css: {
+                type: 'string',
+                description: 'Styles of the classification and prompt.',
+              },
+            },
+            required: ['css'],
+          },
+        },
+      ],
+      function_call: {
+        name: 'generate_css',
+      },
+    });
+
+    let content = response.data.choices[0]?.message?.function_call?.arguments;
+
+    if (!content) {
+      return res.status(500).send('response error');
+    }
+
+    content = JSON.parse(content);
+
+    let filteredContent = xss(content.css);
+
+    // filter css external url
+    filteredContent = filteredContent.replace(/url\((.*?)\)/g, (match, p1) => {
+      if (p1.startsWith('http')) {
+        return 'url(\'\')';
+      }
+      return match;
+    });
+
+    // save css to file
+    const newStyleFileName = `${componentType.id}-${req.user._id}-${Date.now()}.css`;
+    const newStyleFilePath = path.join(styleFolder, newStyleFileName);
+
+    try {
+      if (!fs.existsSync(styleFolder)) {
+        fs.mkdirSync(styleFolder);
+      }
+      fs.writeFileSync(newStyleFilePath, filteredContent);
+    } catch (err) {
+      console.log(err);
+      return res.status(500).send('write file error');
+    }
+
+    // update component to db
+
+    component.title = promptXss;
+    component.styleFileName = newStyleFileName;
+    component.screenshotFileName = '';
+
+    try {
+      await component.save();
+    } catch (err) {
+      console.log(err);
+      return res.status(500).send('save component error');
+    }
+
+    return res.json(component);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).send('error');
+  }
 });
 
 // 建立元件類型
