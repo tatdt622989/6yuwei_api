@@ -427,6 +427,9 @@ router.post('/generate/update/', requireUser, upload.none(), async (req, res) =>
     const newStyleFileName = `${componentType.id}-${req.user._id}-${Date.now()}.css`;
     const newStyleFilePath = path.join(styleFolder, newStyleFileName);
 
+    // delete old style file
+    fs.unlinkSync(styleFilePath);
+
     try {
       if (!fs.existsSync(styleFolder)) {
         fs.mkdirSync(styleFolder);
@@ -438,7 +441,6 @@ router.post('/generate/update/', requireUser, upload.none(), async (req, res) =>
     }
 
     // update component to db
-
     component.title = promptXss;
     component.styleFileName = newStyleFileName;
     component.screenshotFileName = '';
