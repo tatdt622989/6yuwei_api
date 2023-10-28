@@ -28,6 +28,6 @@ jobs:
             username: ${{ secrets.SERVER_USER }}
             key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
             script: |
-              echo whoami
+              whoami
               cd ~/htdocs/api.6yuwei.com
               pm2 restart all
