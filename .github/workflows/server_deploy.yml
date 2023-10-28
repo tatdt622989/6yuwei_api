@@ -20,3 +20,13 @@ jobs:
             key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
             source: "."
             target: "~/htdocs/api.6yuwei.com"
+            
+        - name: Restart PM2
+          uses: appleboy/ssh-action@master
+          with:
+            host: ${{ secrets.SERVER_IP }}
+            username: ${{ secrets.SERVER_USER }}
+            key: ${{ secrets.SERVER_SSH_PRIVATE_KEY }}
+            script: |
+              cd ~/htdocs/api.6yuwei.com
+              pm2 restart all
