@@ -221,7 +221,7 @@ router.post('/generate/', requireUser, upload.none(), async (req, res) => {
   const openai = new OpenAIApi(configuration);
   try {
     const response = await openai.createChatCompletion({
-      model: 'gpt-4-0613',
+      model: 'gpt-4-1106-preview',
       messages: [
         { role: 'system', content: 'You are a professional Creative Front-End Engineer and security expert dedicated to producing high-quality and secure CSS styles with the id "basic". You are also a skilled animator.' },
         {
@@ -370,7 +370,7 @@ router.post('/generate/update/', requireUser, upload.none(), async (req, res) =>
     }
 
     const response = await openai.createChatCompletion({
-      model: 'gpt-4-0613',
+      model: 'gpt-4-1106-preview',
       messages: [
         { role: 'system', content: 'You are a professional Creative Front-End Engineer and security expert dedicated to producing high-quality and secure CSS styles with the id "basic". You are also a skilled animator.' },
         {
