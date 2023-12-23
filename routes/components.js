@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 const express = require('express');
 const helmet = require('helmet');
-const path = require('path');
+// const path = require('path');
 
 const router = express.Router();
 const multer = require('multer');
@@ -11,29 +11,29 @@ const { requireUser, requireAdmin } = require('../middlewares/auth');
 const componentsController = require('../controllers/components');
 
 // multer 設定
-const componentStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      const dest = path.join(__dirname, '../uploads/component_img');
-      cb(null, dest);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
-  filename: (req, file, cb) => {
-    try {
-      const ext = path.extname(file.originalname);
-      const { componentId } = req.body;
-      let filename = `${componentId}${ext}`;
-      filename = Buffer.from(filename, 'latin1').toString('utf8');
-      cb(null, filename);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
-});
+// const componentStorage = multer.diskStorage({
+//   destination: (req, file, cb) => {
+//     try {
+//       const dest = path.join(__dirname, '../uploads/component_img');
+//       cb(null, dest);
+//     } catch (err) {
+//       console.error(err);
+//       cb(err, null);
+//     }
+//   },
+//   filename: (req, file, cb) => {
+//     try {
+//       const ext = path.extname(file.originalname);
+//       const { componentId } = req.body;
+//       let filename = `${componentId}${ext}`;
+//       filename = Buffer.from(filename, 'latin1').toString('utf8');
+//       cb(null, filename);
+//     } catch (err) {
+//       console.error(err);
+//       cb(err, null);
+//     }
+//   },
+// });
 
 /**
  * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
@@ -41,21 +41,21 @@ const componentStorage = multer.diskStorage({
  * @param file - 剛上傳的文件。
  * @param cb - 回調函數。
  */
-const fileFilter = (req, file, cb) => {
-  if (!file.mimetype.startsWith('image')) {
-    console.log('Not an image!');
-    req.fileError = 'Not an image! Please upload an image.';
-    cb(null, false);
-  }
-  cb(null, true);
-};
+// const fileFilter = (req, file, cb) => {
+//   if (!file.mimetype.startsWith('image')) {
+//     console.log('Not an image!');
+//     req.fileError = 'Not an image! Please upload an image.';
+//     cb(null, false);
+//   }
+//   cb(null, true);
+// };
 
-const uploadImg = multer({
-  storage: componentStorage,
-  fileFilter,
-  limits: { fileSize: 1024 * 1024 * 10 },
-  encoding: 'utf-8',
-});
+// const uploadImg = multer({
+//   storage: componentStorage,
+//   fileFilter,
+//   limits: { fileSize: 1024 * 1024 * 10 },
+//   encoding: 'utf-8',
+// });
 
 const frontendDomain = process.env.FRONTEND_DOMAIN;
 const apiDomain = process.env.API_DOMAIN;
@@ -122,7 +122,8 @@ router.get('/sandbox/', helmet({
 }), componentsController.getIframeHTML);
 
 // 上傳元件截圖
-router.post('/screenshot/', requireUser, uploadImg.single('screenshot'), componentsController.uploadScreenshot);
+// router.post('/screenshot/', requireUser,
+// uploadImg.single('screenshot'), componentsController.uploadScreenshot);
 
 // 將元件加入最愛，如果已經加入則移除
 router.post('/favorites/', requireUser, upload.none(), componentsController.addFavorite);

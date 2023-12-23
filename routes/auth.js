@@ -20,7 +20,7 @@ passport.use(new GoogleStrategy(
   {
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.FRONT_END_DOMAIN}/api/google/callback/`,
+    callbackURL: `${process.env.FRONTEND_DOMAIN}api/google/callback/`,
   },
   ((accessToken, refreshToken, profile, cb) => {
     User.findOrCreate(
@@ -195,7 +195,7 @@ router.post('/login/', async (req, res) => {
 router.get('/googleLogin/', passport.authenticate('google', { session: false, scope: ['email', 'profile'] }));
 
 // Google 登入 callback
-router.get('/google/callback/', passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONT_END_DOMAIN}/admin/login/` }), async (req, res) => {
+router.get('/google/callback/', passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_DOMAIN}admin/login/` }), async (req, res) => {
   const { user } = req;
   // jwt token
   const token = user.generateAuthToken();
@@ -206,7 +206,7 @@ router.get('/google/callback/', passport.authenticate('google', { session: false
     sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
   });
 
-  res.redirect(`${process.env.FRONT_END_DOMAIN}/admin/account/`);
+  res.redirect(`${process.env.FRONTEND_DOMAIN}admin/account/`);
 });
 
 // 登出

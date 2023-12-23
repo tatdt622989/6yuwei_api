@@ -615,7 +615,6 @@ const getIframeHTML = async (req, res) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${componentType.title}</title>
         <link rel="stylesheet" href="${apiDomain}components/css/${component.styleFileName}/">
-        <script src="${apiDomain}components/html2canvas.min.js"></script>
         <style>
         body {
           display: flex;
@@ -629,7 +628,6 @@ const getIframeHTML = async (req, res) => {
     </head>
     <body>
       ${componentHTML}
-      <script src="${apiDomain}components/screenshot.js"></script>
     </body>
     </html>`;
 
@@ -640,24 +638,24 @@ const getIframeHTML = async (req, res) => {
   }
 };
 
-const uploadScreenshot = async (req, res) => {
-  const { componentId } = req.body;
-  if (!componentId || !req.file) {
-    return res.status(400).send('Invalid request');
-  }
+// const uploadScreenshot = async (req, res) => {
+//   const { componentId } = req.body;
+//   if (!componentId || !req.file) {
+//     return res.status(400).send('Invalid request');
+//   }
 
-  // write filename to db
-  try {
-    await Component.updateOne(
-      { _id: componentId },
-      { $set: { screenshotFileName: req.file.filename } },
-    );
-    return res.json({ filename: req.file.filename });
-  } catch (err) {
-    console.log(err);
-    return res.status(500).send('error');
-  }
-};
+//   // write filename to db
+//   try {
+//     await Component.updateOne(
+//       { _id: componentId },
+//       { $set: { screenshotFileName: req.file.filename } },
+//     );
+//     return res.json({ filename: req.file.filename });
+//   } catch (err) {
+//     console.log(err);
+//     return res.status(500).send('error');
+//   }
+// };
 
 const addFavorite = async (req, res) => {
   const { componentId } = req.body;
@@ -777,7 +775,7 @@ module.exports = {
   getComponent,
   getComponents,
   getUserComponents,
-  uploadScreenshot,
+  // uploadScreenshot,
   addFavorite,
   deleteFavorite,
   getFavoriteComponents,
