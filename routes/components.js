@@ -116,7 +116,7 @@ router.get('/sandbox/', helmet({
       frameAncestors: ["'self'", frontendDomain],
       styleSrc: ["'self'", "'unsafe-inline'", apiDomain],
       styleSrcElem: ["'self'", "'unsafe-inline'", apiDomain],
-      imgSrc: ["'self'", 'data:', apiDomain],
+      imgSrc: ["'self'", 'data:', apiDomain, frontendDomain],
     },
   },
   originAgentCluster: false,
