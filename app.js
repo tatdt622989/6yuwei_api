@@ -1,4 +1,6 @@
 const express = require('express');
+const { createServer } = require('node:http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const { Configuration, OpenAIApi } = require('openai');
@@ -13,6 +15,7 @@ const adminRouter = require('./routes/admin');
 const contactRouter = require('./routes/contact');
 const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
+const guessAICanvasRouter = require('./routes/guessai_canvas');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
@@ -43,6 +46,8 @@ mongoose
   });
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server);
 
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com'];
@@ -89,6 +94,12 @@ app.use('/admin/', adminRouter);
 app.use('/contact/', contactRouter);
 app.use('/components/', componentsRouter);
 app.use('/members/', memberRouter);
+app.use('/guessai_canvas/', guessAICanvasRouter);
+
+// socket.io
+io.on('connection', (socket) => {
+  console.log('a user connected');
+});
 
 // other routes..
 app.get('/', (req, res) => {
@@ -154,7 +165,7 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-const server = app.listen(3001, () => {
+server.listen(3001, () => {
   console.log(process.env.DB_URL);
   console.log('伺服器正在port3001上運行');
 });
