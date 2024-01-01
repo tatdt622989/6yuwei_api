@@ -8,4 +8,6 @@ router.get('/', (req, res) => {
   res.json({ message: 'Hello World!' });
 });
 
+router.post('/simple_user', guessAICanvasController.createSimpleUser);
+
 module.exports = router;
