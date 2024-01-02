@@ -9,5 +9,7 @@ router.get('/', (req, res) => {
 });
 
 router.post('/simple_user', guessAICanvasController.createSimpleUser);
+router.get('/simple_user', guessAICanvasController.getSimpleUser);
+router.get('/canvas/', guessAICanvasController.getCanvas);
 
 module.exports = router;
