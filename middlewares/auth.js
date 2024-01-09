@@ -34,6 +34,7 @@ const publicRoutes = [
   '/google/callback/',
   '/guessai_canvas/',
   '/guessai_canvas/simple_user/',
+  '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
 ];
 
 async function verifyToken(req, res, next) {

@@ -29,3 +29,18 @@ guessaiCanvasSimpleUserSchema.methods.generateAuthToken = function () {
 const GuessAICanvasSimpleUser = mongoose.model('GuessAICanvasSimpleUser', guessaiCanvasSimpleUserSchema);
 
 module.exports = GuessAICanvasSimpleUser;
+
+const guessiCanvasSchema = new mongoose.Schema({
+  canvas: String,
+  answerTW: String,
+  answerEN: String,
+  answerJP: String,
+  correctRespondent: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'GuessAICanvasSimpleUser',
+  },
+}, { timestamps: true });
+
+const GuessAICanvas = mongoose.model('GuessAICanvas', guessiCanvasSchema);
+
+module.exports = GuessAICanvas;

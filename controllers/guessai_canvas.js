@@ -1,10 +1,19 @@
 const jwt = require('jsonwebtoken');
+const OpenAI = require('openai');
+const path = require('path');
+
+const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
+const openai = new OpenAI({
+  apiKey: OpenAIAPIKey,
+});
+
+const apiDomain = process.env.API_DOMAIN;
 
 // model
 const GuessAICanvasSimpleUser = require('../models/guessai_canvas');
 
 const createSimpleUser = async (req, res) => {
-  const recaptchaToken = req.body['g-recaptcha-response'];
+  const recaptchaToken = req.body.token;
   const form = new FormData();
   form.append('secret', process.env.RECAPTCHA_SECRET_KEY);
   form.append('response', recaptchaToken);
@@ -21,15 +30,17 @@ const createSimpleUser = async (req, res) => {
   } else {
     return res.status(500).send('Recaptcha failed');
   }
-  const { name, photo, score } = req.body;
+  const { name, score } = req.body;
 
   if (!name) {
     return res.status(400).send('Name is required');
   }
 
+  const { filename } = req.file;
+
   const simpleUser = new GuessAICanvasSimpleUser({
     name,
-    photo,
+    photo: filename,
     score,
   });
 
@@ -50,6 +61,9 @@ const createSimpleUser = async (req, res) => {
   return res.json({
     message: 'Registration Success',
     id: simpleUser.id,
+    name: simpleUser.name,
+    photo: `${apiDomain}/guessai_canvas/user_photo/${simpleUser.photo}/`,
+    score: simpleUser.score,
   });
 };
 
@@ -82,6 +96,13 @@ const getSimpleUser = async (req, res) => {
   return null;
 };
 
+const getUserPhoto = async (req, res) => {
+  const { filename } = req.params;
+  const imgPath = path.join(__dirname, `../uploads/guessai_canvas/img/${filename}`);
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(imgPath);
+};
+
 const getCanvas = async (req, res) => {
   // const { id } = req.params;
   // const canvas = await GuessAICanvas.findById(id);
@@ -95,4 +116,5 @@ module.exports = {
   createSimpleUser,
   getSimpleUser,
   getCanvas,
+  getUserPhoto,
 };
