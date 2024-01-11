@@ -32,9 +32,9 @@ const publicRoutes = [
   '/components/screenshot_dev.js',
   '/googleLogin/',
   '/google/callback/',
-  '/guessai_canvas/',
-  '/guessai_canvas/simple_user/',
   '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
+  '/guessai_canvas/simple_user/',
+  '/guessai_canvas/',
 ];
 
 async function verifyToken(req, res, next) {

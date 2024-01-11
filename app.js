@@ -1,5 +1,5 @@
 const express = require('express');
-const { createServer } = require('node:http');
+const { createServer } = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
@@ -47,7 +47,14 @@ mongoose
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:3001', 'http://localhost:8888'],
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
+    credentials: true,
+  },
+});
 
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com'];
@@ -57,9 +64,6 @@ if (env === 'development') {
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
-    credentials: true,
   }),
 );
 
@@ -98,7 +102,28 @@ app.use('/guessai_canvas/', guessAICanvasRouter);
 
 // socket.io
 io.on('connection', (socket) => {
+  const accessToken = socket.handshake.headers.cookie?.split('access_token=')[1]?.split(';')[0];
+  // eslint-disable-next-line no-param-reassign
+  socket.accessToken = accessToken; // save accessToken to socket
   console.log('a user connected');
+
+  // get message from client
+  socket.on('message', (msg) => {
+    // verify token
+    if (!accessToken) {
+      return;
+    }
+
+    console.log(msg);
+    io.emit('message', msg);
+  });
+});
+
+io.on('connection_error', (err) => {
+  console.log(err.req); // the request object
+  console.log(err.code); // the error code, for example 1
+  console.log(err.message); // the error message, for example "Session ID unknown"
+  console.log(err.context); // some additional error context
 });
 
 // other routes..

@@ -10,7 +10,7 @@ const openai = new OpenAI({
 const apiDomain = process.env.API_DOMAIN;
 
 // model
-const GuessAICanvasSimpleUser = require('../models/guessai_canvas');
+const { GuessAICanvas, SimpleUser } = require('../models/guessai_canvas');
 
 const createSimpleUser = async (req, res) => {
   const recaptchaToken = req.body.token;
@@ -36,16 +36,12 @@ const createSimpleUser = async (req, res) => {
     return res.status(400).send('Name is required');
   }
 
-  const { filename } = req.file;
+  const filename = req.file?.filename;
 
-  const simpleUser = new GuessAICanvasSimpleUser({
+  const simpleUser = new SimpleUser({
     name,
     photo: filename,
     score,
-  });
-
-  await simpleUser.save().catch((err) => {
-    res.status(500).send(`Registration Failure-${err}`);
   });
 
   // jwt token
@@ -54,15 +50,19 @@ const createSimpleUser = async (req, res) => {
   res.cookie('access_token', token, {
     httpOnly: true, // 只能在伺服器端讀取cookie
     secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-    maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+    sameSite: 'lax', // 避免CSRF攻擊
+    maxAge: 1000 * 60 * 60 * 24 * 365, // 1 year
+  });
+
+  await simpleUser.save().catch((err) => {
+    res.status(500).send(`Registration Failure-${err}`);
   });
 
   return res.json({
     message: 'Registration Success',
     id: simpleUser.id,
     name: simpleUser.name,
-    photo: `${apiDomain}/guessai_canvas/user_photo/${simpleUser.photo}/`,
+    photo: `${apiDomain}guessai_canvas/user_photo/${simpleUser.photo}/`,
     score: simpleUser.score,
   });
 };
@@ -77,7 +77,7 @@ const getSimpleUser = async (req, res) => {
 
   await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
     if (decoded) {
-      const simpleUser = await GuessAICanvasSimpleUser.findById(decoded.userId);
+      const simpleUser = await SimpleUser.findById(decoded.userId);
       if (!simpleUser) {
         return res.status(403).send('User not found');
       }

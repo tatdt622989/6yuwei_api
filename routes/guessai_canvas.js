@@ -1,10 +1,10 @@
 const express = require('express');
 
 const router = express.Router();
-const guessAICanvasController = require('../controllers/guessai_canvas');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const guessAICanvasController = require('../controllers/guessai_canvas');
 
 // multer 設定
 const guessAICanvasStorage = multer.diskStorage({

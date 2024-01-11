@@ -1,14 +1,15 @@
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 
-const guessaiCanvasSimpleUserSchema = new mongoose.Schema({
+// 使用者
+const simpleUserSchema = new mongoose.Schema({
   name: String,
   photo: String,
   score: Number,
 }, { timestamps: true });
 
 // generate jwt token
-guessaiCanvasSimpleUserSchema.methods.generateAuthToken = function () {
+simpleUserSchema.methods.generateAuthToken = function () {
   const user = this; // document
 
   if (!user.id) {
@@ -21,26 +22,38 @@ guessaiCanvasSimpleUserSchema.methods.generateAuthToken = function () {
       userId: user.id,
     },
     process.env.SECRET_KEY,
-    { expiresIn: process.env.TOKEN_EXPIRES_IN },
+    { expiresIn: '1y' },
   );
   return token;
 };
+const SimpleUser = mongoose.model('SimpleUser', simpleUserSchema);
 
-const GuessAICanvasSimpleUser = mongoose.model('GuessAICanvasSimpleUser', guessaiCanvasSimpleUserSchema);
-
-module.exports = GuessAICanvasSimpleUser;
-
-const guessiCanvasSchema = new mongoose.Schema({
+// 猜AI畫布
+const guessaiCanvasSchema = new mongoose.Schema({
   canvas: String,
   answerTW: String,
   answerEN: String,
   answerJP: String,
   correctRespondent: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'GuessAICanvasSimpleUser',
+    ref: 'SimpleUser',
   },
 }, { timestamps: true });
+const GuessAICanvas = mongoose.model('GuessAICanvas', guessaiCanvasSchema);
 
-const GuessAICanvas = mongoose.model('GuessAICanvas', guessiCanvasSchema);
+// 對話訊息
+const messageSchema = new mongoose.Schema({
+  message: String,
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SimpleUser',
+  },
+  isCorrect: Boolean,
+}, { timestamps: true });
+const Message = mongoose.model('Message', messageSchema);
 
-module.exports = GuessAICanvas;
+module.exports = {
+  SimpleUser,
+  GuessAICanvas,
+  Message,
+};
