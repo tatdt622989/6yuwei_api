@@ -7,6 +7,7 @@ const { Configuration, OpenAIApi } = require('openai');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
 const threeDCGsRouter = require('./routes/3dcgs');
@@ -17,6 +18,7 @@ const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
 const guessAICanvasRouter = require('./routes/guessai_canvas');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
+const { Messages, SimpleUser } = require('./models/guessai_canvas');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
 
@@ -108,14 +110,48 @@ io.on('connection', (socket) => {
   console.log('a user connected');
 
   // get message from client
-  socket.on('message', (msg) => {
+  socket.on('client message', async (msg) => {
     // verify token
     if (!accessToken) {
       return;
     }
+    const decoded = await jwt.verify(accessToken, process.env.SECRET_KEY);
+    if (!decoded) {
+      return;
+    }
 
-    console.log(msg);
-    io.emit('message', msg);
+    // set message to db
+    const message = new Messages({
+      message: msg,
+      user: decoded.userId,
+      isCorrect: false,
+    });
+
+    try {
+      await message.save();
+    } catch (err) {
+      console.log(err);
+      return;
+    }
+
+    // get user data from db
+    const user = await SimpleUser.findById(decoded.userId);
+    if (!user) {
+      return;
+    }
+
+    // emit message to all clients
+    io.emit('server message', {
+      user: {
+        name: user.name,
+        photo: user.photo,
+      },
+      message: msg,
+      isCorrect: false,
+    });
+
+    // emit ranking to all clients
+    io.emit('server ranking', {});
   });
 });
 

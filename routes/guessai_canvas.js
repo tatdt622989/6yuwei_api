@@ -75,8 +75,9 @@ router.get('/', (req, res) => {
 });
 
 router.get('/user_photo/:filename/', guessAICanvasController.getUserPhoto);
-router.post('/simple_user', upload.single('photo'), guessAICanvasController.createSimpleUser);
-router.get('/simple_user', guessAICanvasController.getSimpleUser);
+router.post('/simple_user/', upload.single('photo'), guessAICanvasController.createSimpleUser);
+router.get('/simple_user/', guessAICanvasController.getSimpleUser);
+router.get('/msg_list/', guessAICanvasController.getMsgList);
 router.get('/canvas/', guessAICanvasController.getCanvas);
 
 module.exports = router;

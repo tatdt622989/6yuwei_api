@@ -12,12 +12,12 @@ const publicRoutes = [
   '/websites/',
   '/3dcgs/',
   '/3dcgs/[0-9a-fA-F]{24}/',
-  '/animations/',
   '/animations/[0-9a-fA-F]{24}/',
+  '/animations/',
   '/admin/uploads/[^./]+.(jpg|jpeg|png|gif|webp)',
   '/contact/',
-  '/websites/category/',
   '/3dcgs/category/',
+  '/websites/category/',
   '/animations/category/',
   '/components/[0-9a-fA-F]{24}/',
   '/components/types/',
@@ -32,9 +32,10 @@ const publicRoutes = [
   '/components/screenshot_dev.js',
   '/googleLogin/',
   '/google/callback/',
-  '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
   '/guessai_canvas/simple_user/',
+  '/guessai_canvas/msg_list/',
   '/guessai_canvas/',
+  '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
 ];
 
 async function verifyToken(req, res, next) {

@@ -50,10 +50,10 @@ const messageSchema = new mongoose.Schema({
   },
   isCorrect: Boolean,
 }, { timestamps: true });
-const Message = mongoose.model('Message', messageSchema);
+const Messages = mongoose.model('Messages', messageSchema);
 
 module.exports = {
   SimpleUser,
   GuessAICanvas,
-  Message,
+  Messages,
 };

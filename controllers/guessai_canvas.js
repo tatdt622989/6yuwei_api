@@ -10,7 +10,7 @@ const openai = new OpenAI({
 const apiDomain = process.env.API_DOMAIN;
 
 // model
-const { GuessAICanvas, SimpleUser } = require('../models/guessai_canvas');
+const { GuessAICanvas, SimpleUser, Messages } = require('../models/guessai_canvas');
 
 const createSimpleUser = async (req, res) => {
   const recaptchaToken = req.body.token;
@@ -103,6 +103,12 @@ const getUserPhoto = async (req, res) => {
   res.sendFile(imgPath);
 };
 
+const getMsgList = async (req, res) => {
+  const msgList = await Messages.find().populate('user').sort({ createdAt: -1 }).limit(1000);
+  msgList.reverse();
+  return res.json(msgList);
+};
+
 const getCanvas = async (req, res) => {
   // const { id } = req.params;
   // const canvas = await GuessAICanvas.findById(id);
@@ -117,4 +123,5 @@ module.exports = {
   getSimpleUser,
   getCanvas,
   getUserPhoto,
+  getMsgList,
 };
