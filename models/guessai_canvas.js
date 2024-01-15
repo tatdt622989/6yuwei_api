@@ -38,6 +38,7 @@ const guessaiCanvasSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'SimpleUser',
   },
+  solved: Boolean,
 }, { timestamps: true });
 const GuessAICanvas = mongoose.model('GuessAICanvas', guessaiCanvasSchema);
 
@@ -52,8 +53,16 @@ const messageSchema = new mongoose.Schema({
 }, { timestamps: true });
 const Messages = mongoose.model('Messages', messageSchema);
 
+const themeSchema = new mongoose.Schema({
+  themeTW: String,
+  themeEN: String,
+  themeJP: String,
+}, { timestamps: true });
+const Theme = mongoose.model('Theme', themeSchema);
+
 module.exports = {
   SimpleUser,
   GuessAICanvas,
   Messages,
+  Theme,
 };

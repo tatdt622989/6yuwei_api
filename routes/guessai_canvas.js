@@ -4,6 +4,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const helmet = require('helmet');
 const guessAICanvasController = require('../controllers/guessai_canvas');
 
 // multer 設定
@@ -78,6 +79,17 @@ router.get('/user_photo/:filename/', guessAICanvasController.getUserPhoto);
 router.post('/simple_user/', upload.single('photo'), guessAICanvasController.createSimpleUser);
 router.get('/simple_user/', guessAICanvasController.getSimpleUser);
 router.get('/msg_list/', guessAICanvasController.getMsgList);
-router.get('/canvas/', guessAICanvasController.getCanvas);
+router.post('/theme/', guessAICanvasController.createTheme);
+router.get('/canvas/', helmet(
+  {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+      },
+    },
+  },
+), guessAICanvasController.getCanvas);
 
 module.exports = router;

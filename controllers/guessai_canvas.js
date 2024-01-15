@@ -10,7 +10,9 @@ const openai = new OpenAI({
 const apiDomain = process.env.API_DOMAIN;
 
 // model
-const { GuessAICanvas, SimpleUser, Messages } = require('../models/guessai_canvas');
+const {
+  GuessAICanvas, SimpleUser, Messages, Theme,
+} = require('../models/guessai_canvas');
 
 const createSimpleUser = async (req, res) => {
   const recaptchaToken = req.body.token;
@@ -30,7 +32,7 @@ const createSimpleUser = async (req, res) => {
   } else {
     return res.status(500).send('Recaptcha failed');
   }
-  const { name, score } = req.body;
+  const { name } = req.body;
 
   if (!name) {
     return res.status(400).send('Name is required');
@@ -41,13 +43,13 @@ const createSimpleUser = async (req, res) => {
   const simpleUser = new SimpleUser({
     name,
     photo: filename,
-    score,
+    score: 0,
   });
 
   // jwt token
   const token = simpleUser.generateAuthToken();
 
-  res.cookie('access_token', token, {
+  res.cookie('guessai_canvas_access_token', token, {
     httpOnly: true, // 只能在伺服器端讀取cookie
     secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
     sameSite: 'lax', // 避免CSRF攻擊
@@ -69,7 +71,7 @@ const createSimpleUser = async (req, res) => {
 
 const getSimpleUser = async (req, res) => {
   // verify token
-  const token = req.cookies.access_token;
+  const token = req.cookies.guessai_canvas_access_token;
 
   if (!token) {
     return res.status(403).send('No token');
@@ -110,16 +112,89 @@ const getMsgList = async (req, res) => {
 };
 
 const getCanvas = async (req, res) => {
-  // const { id } = req.params;
-  // const canvas = await GuessAICanvas.findById(id);
-  // if (!canvas) {
-  //   return res.status(404).send('Canvas not found');
-  // }
-  // return res.json(canvas);
+  const canvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
+  if (!canvas) {
+    return res.status(404).send('Canvas not found');
+  }
+  const iframe = /* html */`
+  <!DOCTYPE html>
+  <html lang="zh-tw">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>guessAI Canvas</title>
+  </head>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      width: 100%;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  </style>
+  <body>
+    ${canvas.canvas}
+  </body>
+  </html>
+  `;
+
+  return res.send(iframe);
+};
+
+const createTheme = async (req, res) => {
+  const { list } = req.body;
+  if (!list) {
+    return res.status(400).send('List is required');
+  }
+  // check if list is empty
+  if (!list.length) {
+    return res.status(400).send('List is empty');
+  }
+
+  const oldList = await Theme.find().catch((err) => res.status(500).send(`Find db failure-${err}`));
+  const tempList = [...oldList];
+  const newList = list.filter((item) => {
+    let isDuplicate = false;
+    tempList.forEach((tempItem) => {
+      if (item.themeTW === tempItem.themeTW) {
+        isDuplicate = true;
+      }
+    });
+    if (!isDuplicate) {
+      tempList.push(item);
+      return true;
+    }
+    return false;
+  });
+
+  // check if list is empty
+  if (!newList.length) {
+    return res.status(400).send('All items are duplicate');
+  }
+
+  // save to db
+  try {
+    await Theme.insertMany(newList);
+  } catch (err) {
+    return res.status(500).send(`Save to db failure-${err}`);
+  }
+
+  return res.json({
+    message: 'Save to db success',
+  });
 };
 
 module.exports = {
   createSimpleUser,
+  createTheme,
   getSimpleUser,
   getCanvas,
   getUserPhoto,

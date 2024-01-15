@@ -1,13 +1,12 @@
 const express = require('express');
 const { createServer } = require('http');
-const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const jwt = require('jsonwebtoken');
+const socketServer = require('./sockets/socketServer');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
 const threeDCGsRouter = require('./routes/3dcgs');
@@ -18,7 +17,6 @@ const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
 const guessAICanvasRouter = require('./routes/guessai_canvas');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
-const { Messages, SimpleUser } = require('./models/guessai_canvas');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
 
@@ -32,6 +30,10 @@ console.log = (message) => {
 const dbURL = process.env.DB_URL;
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 const env = process.env.NODE_ENV;
+
+const openai = new OpenAI({
+  apiKey: OpenAIAPIKey,
+});
 
 // 連接資料庫
 mongoose.set('strictQuery', true);
@@ -49,14 +51,7 @@ mongoose
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com', 'http://localhost:3000', 'http://localhost:5173', 'http://localhost:3001', 'http://localhost:8888'],
-    methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
-    credentials: true,
-  },
-});
+socketServer(server);
 
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com'];
@@ -102,93 +97,33 @@ app.use('/components/', componentsRouter);
 app.use('/members/', memberRouter);
 app.use('/guessai_canvas/', guessAICanvasRouter);
 
-// socket.io
-io.on('connection', (socket) => {
-  const accessToken = socket.handshake.headers.cookie?.split('access_token=')[1]?.split(';')[0];
-  // eslint-disable-next-line no-param-reassign
-  socket.accessToken = accessToken; // save accessToken to socket
-  console.log('a user connected');
-
-  // get message from client
-  socket.on('client message', async (msg) => {
-    // verify token
-    if (!accessToken) {
-      return;
-    }
-    const decoded = await jwt.verify(accessToken, process.env.SECRET_KEY);
-    if (!decoded) {
-      return;
-    }
-
-    // set message to db
-    const message = new Messages({
-      message: msg,
-      user: decoded.userId,
-      isCorrect: false,
-    });
-
-    try {
-      await message.save();
-    } catch (err) {
-      console.log(err);
-      return;
-    }
-
-    // get user data from db
-    const user = await SimpleUser.findById(decoded.userId);
-    if (!user) {
-      return;
-    }
-
-    // emit message to all clients
-    io.emit('server message', {
-      user: {
-        name: user.name,
-        photo: user.photo,
-      },
-      message: msg,
-      isCorrect: false,
-    });
-
-    // emit ranking to all clients
-    io.emit('server ranking', {});
-  });
-});
-
-io.on('connection_error', (err) => {
-  console.log(err.req); // the request object
-  console.log(err.code); // the error code, for example 1
-  console.log(err.message); // the error message, for example "Session ID unknown"
-  console.log(err.context); // some additional error context
-});
-
 // other routes..
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
 });
-app.get('/chat/', async (req, res) => {
-  const { prompt, systemPrompt } = req.query;
-  const configuration = new Configuration({
-    apiKey: OpenAIAPIKey,
-  });
-  const openai = new OpenAIApi(configuration);
-  try {
-    const response = await openai.createChatCompletion({
-      model: 'gpt-4-1106-preview',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 1,
-      // max_tokens: 4096,
-    });
-    const { content } = response.data.choices[0].message;
-    res.json(content);
-  } catch (err) {
-    console.log(err);
-    res.status(500).send('error');
-  }
-});
+// app.get('/chat/', async (req, res) => {
+//   const { prompt, systemPrompt } = req.query;
+//   const configuration = new Configuration({
+//     apiKey: OpenAIAPIKey,
+//   });
+//   const openai = new OpenAIApi(configuration);
+//   try {
+//     const response = await openai.createChatCompletion({
+//       model: 'gpt-4-1106-preview',
+//       messages: [
+//         { role: 'system', content: systemPrompt },
+//         { role: 'user', content: prompt },
+//       ],
+//       temperature: 1,
+//       // max_tokens: 4096,
+//     });
+//     const { content } = response.data.choices[0].message;
+//     res.json(content);
+//   } catch (err) {
+//     console.log(err);
+//     res.status(500).send('error');
+//   }
+// });
 
 // api test
 app.get('/test/', requireAdmin, (req, res) => {

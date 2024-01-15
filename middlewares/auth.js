@@ -32,9 +32,11 @@ const publicRoutes = [
   '/components/screenshot_dev.js',
   '/googleLogin/',
   '/google/callback/',
+  '/guessai_canvas/theme/',
   '/guessai_canvas/simple_user/',
   '/guessai_canvas/msg_list/',
   '/guessai_canvas/',
+  '/guessai_canvas/canvas/',
   '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
 ];
 
