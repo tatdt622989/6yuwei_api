@@ -91,5 +91,6 @@ router.get('/canvas/', helmet(
     },
   },
 ), guessAICanvasController.getCanvas);
+router.get('/ranking/', guessAICanvasController.getRanking);
 
 module.exports = router;

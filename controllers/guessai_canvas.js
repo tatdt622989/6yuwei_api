@@ -149,6 +149,11 @@ const getCanvas = async (req, res) => {
   return res.send(iframe);
 };
 
+const getRanking = async (req, res) => {
+  const users = await SimpleUser.find().sort({ score: -1 }).limit(30);
+  return res.json(users);
+};
+
 const createTheme = async (req, res) => {
   const { list } = req.body;
   if (!list) {
@@ -199,4 +204,5 @@ module.exports = {
   getCanvas,
   getUserPhoto,
   getMsgList,
+  getRanking,
 };

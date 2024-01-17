@@ -123,6 +123,22 @@ module.exports = (io, socket, accessToken) => {
         return;
       }
 
+      // Check if the user has sent 12 messages in 3 minutes or less.
+      const now = new Date();
+      const limitTime = new Date(now.getTime() - 3 * 60 * 1000);
+      const messageCount = await Messages.countDocuments({
+        user: decoded.userId,
+        createdAt: { $gte: limitTime },
+      });
+
+      if (messageCount >= 12) {
+        io.to(socket.id).emit('server message', {
+          status: 'error',
+          message: 'Please wait 3 minutes before sending another message.',
+        });
+        return;
+      }
+
       // check newest canvas
       const guessaiCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
       // set message to db
@@ -159,10 +175,22 @@ module.exports = (io, socket, accessToken) => {
           // emit canvas to all clients
           io.emit('server canvas', {
             status: 'loading',
+            prevAnswer: {
+              answerTW,
+              answerEN,
+              answerJP,
+            },
+            correctRespondent: {
+              name: user.name,
+              photo: user.photo,
+            },
           });
 
+          // get top 30 users
+          const users = await SimpleUser.find().sort({ score: -1 }).limit(30);
+
           // emit ranking to all clients
-          io.emit('server ranking', {});
+          io.emit('server ranking', users);
 
           generateCanvas();
         }
@@ -171,6 +199,24 @@ module.exports = (io, socket, accessToken) => {
       }
 
       await message.save();
+
+      // verify that 5 users have guessed or 50 attempts have been made.
+      const attemptData = await Messages.find().sort({ createdAt: -1 }).limit(50);
+      const tempUserList = [];
+      attemptData.forEach((attempt) => {
+        if (tempUserList.indexOf(String(attempt.user)) === -1) {
+          tempUserList.push(String(attempt.user));
+        }
+      });
+      const hasCorrect = attemptData.some((attempt) => attempt.isCorrect);
+      if (tempUserList.length >= 5 || !hasCorrect) {
+        // emit canvas to all clients
+        io.emit('server canvas', {
+          status: 'info',
+          message: 'The theme has been changed.',
+        });
+        generateCanvas();
+      }
 
       // emit message to all clients
       io.emit('server message', {
