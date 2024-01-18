@@ -61,6 +61,9 @@ if (env === 'development') {
 app.use(
   cors({
     origin: allowedOrigins,
+    methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
+    credentials: true,
   }),
 );
 
