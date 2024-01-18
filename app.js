@@ -54,7 +54,7 @@ const server = createServer(app);
 socketServer(server);
 
 // 跨域設定
-let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com'];
+let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com', 'https://app.6yuwei.com'];
 if (env === 'development') {
   allowedOrigins = ['http://localhost:3000', 'http://localhost:8888', 'http://127.0.0.1:5500', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:5173'];
 }
