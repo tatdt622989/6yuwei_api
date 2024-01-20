@@ -69,6 +69,49 @@ const createSimpleUser = async (req, res) => {
   });
 };
 
+const createTheme = async (req, res) => {
+  const { list } = req.body;
+  if (!list) {
+    return res.status(400).send('List is required');
+  }
+  // check if list is empty
+  if (!list.length) {
+    return res.status(400).send('List is empty');
+  }
+
+  const oldList = await Theme.find().catch((err) => res.status(500).send(`Find db failure-${err}`));
+  const tempList = [...oldList];
+  const newList = list.filter((item) => {
+    let isDuplicate = false;
+    tempList.forEach((tempItem) => {
+      if (item.themeTW === tempItem.themeTW) {
+        isDuplicate = true;
+      }
+    });
+    if (!isDuplicate) {
+      tempList.push(item);
+      return true;
+    }
+    return false;
+  });
+
+  // check if list is empty
+  if (!newList.length) {
+    return res.status(400).send('All items are duplicate');
+  }
+
+  // save to db
+  try {
+    await Theme.insertMany(newList);
+  } catch (err) {
+    return res.status(500).send(`Save to db failure-${err}`);
+  }
+
+  return res.json({
+    message: 'Save to db success',
+  });
+};
+
 const getSimpleUser = async (req, res) => {
   // verify token
   const token = req.cookies.guessai_canvas_access_token;
@@ -169,52 +212,41 @@ const getRanking = async (req, res) => {
   return res.json(users);
 };
 
-const createTheme = async (req, res) => {
-  const { list } = req.body;
-  if (!list) {
-    return res.status(400).send('List is required');
-  }
-  // check if list is empty
-  if (!list.length) {
-    return res.status(400).send('List is empty');
+const updateSimpleUser = async (req, res) => {
+  const { score } = req.body;
+  const token = req.cookies.guessai_canvas_access_token;
+
+  if (!token) {
+    return res.status(403).send('No token');
   }
 
-  const oldList = await Theme.find().catch((err) => res.status(500).send(`Find db failure-${err}`));
-  const tempList = [...oldList];
-  const newList = list.filter((item) => {
-    let isDuplicate = false;
-    tempList.forEach((tempItem) => {
-      if (item.themeTW === tempItem.themeTW) {
-        isDuplicate = true;
+  await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+    if (decoded) {
+      const simpleUser = await SimpleUser.findById(decoded.userId);
+      if (!simpleUser) {
+        return res.status(403).send('User not found');
       }
-    });
-    if (!isDuplicate) {
-      tempList.push(item);
-      return true;
+      simpleUser.score = score;
+      await simpleUser.save();
+      return res.json(simpleUser);
     }
-    return false;
+    if (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(403).send('Login timeout, please login again');
+      }
+      return res.status(403).send('Please login first');
+    }
+
+    return null;
   });
 
-  // check if list is empty
-  if (!newList.length) {
-    return res.status(400).send('All items are duplicate');
-  }
-
-  // save to db
-  try {
-    await Theme.insertMany(newList);
-  } catch (err) {
-    return res.status(500).send(`Save to db failure-${err}`);
-  }
-
-  return res.json({
-    message: 'Save to db success',
-  });
-};
+  return null;
+}
 
 module.exports = {
   createSimpleUser,
   createTheme,
+  updateSimpleUser,
   getSimpleUser,
   getCanvas,
   getUserPhoto,

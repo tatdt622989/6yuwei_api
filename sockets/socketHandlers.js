@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const OpenAI = require('openai');
+const socketState = require('./socketState');
 const {
   Messages, SimpleUser, GuessAICanvas, Theme,
 } = require('../models/guessai_canvas');
@@ -10,13 +11,13 @@ const openai = new OpenAI({
 });
 
 module.exports = (io, socket, accessToken) => {
-  let isCanvasGenerating = false;
+  const state = socketState.getSocketState();
   const generateCanvas = async () => {
     console.log('generate canvas');
-    if (isCanvasGenerating) {
+    if (state.isCanvasGenerating) {
       return;
     }
-    isCanvasGenerating = true;
+    state.isCanvasGenerating = true;
     let content = null;
 
     // get theme from db
@@ -62,20 +63,17 @@ module.exports = (io, socket, accessToken) => {
         tool_choice: { type: 'function', function: { name: 'canvasDraw' } },
       });
 
-      // write response to log
-      console.log(JSON.stringify(response));
-
       content = response.choices[0]?.message?.tool_calls[0]?.function.arguments;
       if (!content
         || !content.code) {
-        isCanvasGenerating = false;
+        state.isCanvasGenerating = false;
         // retry
         // generateCanvas();
       }
       content = JSON.parse(content);
     } catch (err) {
       console.log(err);
-      isCanvasGenerating = false;
+      state.isCanvasGenerating = false;
       // retry
       // generateCanvas();
     }
@@ -104,7 +102,7 @@ module.exports = (io, socket, accessToken) => {
     });
 
     console.log('generate canvas done');
-    isCanvasGenerating = false;
+    state.isCanvasGenerating = false;
   };
 
   // get message from client
@@ -160,7 +158,8 @@ module.exports = (io, socket, accessToken) => {
           || lowercaseMsg === lowercaseAnswerEN
           || lowercaseMsg === answerJP
         ) && !guessaiCanvas.solved) {
-          console.log('correct');
+          generateCanvas();
+
           // set message to db
           message.isCorrect = true;
 
@@ -193,11 +192,7 @@ module.exports = (io, socket, accessToken) => {
 
           // emit ranking to all clients
           io.emit('server ranking', users);
-
-          generateCanvas();
         }
-      } else {
-        generateCanvas();
       }
 
       await message.save();
@@ -207,22 +202,18 @@ module.exports = (io, socket, accessToken) => {
       const differenceInMillis = nowTime - canvasTime;
       const differenceInMinutes = Math.floor(differenceInMillis / (1000 * 60));
 
-      // verify that 5 users have guessed or 50 attempts have been made.
+      // get attempt data
       const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
-        .sort({ createdAt: -1 }).limit(13);
-      const tempUserList = [];
-      attemptData.forEach((attempt) => {
-        if (tempUserList.indexOf(String(attempt.user)) === -1) {
-          tempUserList.push(String(attempt.user));
-        }
-      });
-      const hasCorrect = attemptData.some((attempt) => attempt.isCorrect);
-      if (attemptData.length >= 20 || (!hasCorrect && differenceInMinutes > 10)) {
+        .sort({ createdAt: -1 });
+      const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
+      if (!hasCorrect && differenceInMinutes > 10 && attemptData.length > 20) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',
           message: 'The theme has been changed.',
         });
+        guessaiCanvas.solved = true;
+        await guessaiCanvas.save();
         generateCanvas();
       }
 
@@ -233,6 +224,7 @@ module.exports = (io, socket, accessToken) => {
           photo: user.photo,
         },
         message: msg,
+        createdAt: message.createdAt,
         isCorrect: message.isCorrect,
       });
     } catch (err) {

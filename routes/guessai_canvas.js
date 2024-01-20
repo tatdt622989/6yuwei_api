@@ -78,6 +78,7 @@ router.get('/', (req, res) => {
 router.get('/user_photo/:filename/', guessAICanvasController.getUserPhoto);
 router.post('/simple_user/', upload.single('photo'), guessAICanvasController.createSimpleUser);
 router.get('/simple_user/', guessAICanvasController.getSimpleUser);
+router.put('/simple_user/', guessAICanvasController.updateSimpleUser);
 router.get('/msg_list/', guessAICanvasController.getMsgList);
 router.post('/theme/', guessAICanvasController.createTheme);
 router.get('/canvas/', helmet(
