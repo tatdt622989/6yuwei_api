@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const OpenAI = require('openai');
-const { Messages, SimpleUser, GuessAICanvas, Theme } = require('../models/guessai_canvas');
+const {
+  Messages, SimpleUser, GuessAICanvas, Theme,
+} = require('../models/guessai_canvas');
 
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 const openai = new OpenAI({
@@ -148,12 +150,12 @@ module.exports = (io, socket, accessToken) => {
         isCorrect: false,
       });
 
-      if (guessaiCanvas) {
+      if (guessaiCanvas && !guessaiCanvas.solved) {
         // check if message is correct
         const { answerTW, answerEN, answerJP } = guessaiCanvas;
         // if is english, convert to lower case
-        const lowercaseMsg = msg.toLowerCase();
-        const lowercaseAnswerEN = answerEN.toLowerCase();
+        const lowercaseMsg = msg.toLowerCase() ?? '';
+        const lowercaseAnswerEN = answerEN.toLowerCase() ?? '';
         if ((lowercaseMsg === answerTW
           || lowercaseMsg === lowercaseAnswerEN
           || lowercaseMsg === answerJP
@@ -200,8 +202,14 @@ module.exports = (io, socket, accessToken) => {
 
       await message.save();
 
+      const canvasTime = guessaiCanvas.createdAt.getTime();
+      const nowTime = Date.now();
+      const differenceInMillis = nowTime - canvasTime;
+      const differenceInMinutes = Math.floor(differenceInMillis / (1000 * 60));
+
       // verify that 5 users have guessed or 50 attempts have been made.
-      const attemptData = await Messages.find().sort({ createdAt: -1 }).limit(50);
+      const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
+        .sort({ createdAt: -1 }).limit(13);
       const tempUserList = [];
       attemptData.forEach((attempt) => {
         if (tempUserList.indexOf(String(attempt.user)) === -1) {
@@ -209,7 +217,7 @@ module.exports = (io, socket, accessToken) => {
         }
       });
       const hasCorrect = attemptData.some((attempt) => attempt.isCorrect);
-      if (tempUserList.length >= 5 || !hasCorrect) {
+      if (attemptData.length >= 20 || (!hasCorrect && differenceInMinutes > 10)) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',

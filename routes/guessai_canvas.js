@@ -84,9 +84,10 @@ router.get('/canvas/', helmet(
   {
     contentSecurityPolicy: {
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
+        defaultSrc: ["'self'", 'https://app.6yuwei.com'],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
+        frameAncestors: ["'self'", 'https://app.6yuwei.com'],
       },
     },
   },

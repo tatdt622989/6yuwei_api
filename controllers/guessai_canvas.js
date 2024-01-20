@@ -113,8 +113,23 @@ const getMsgList = async (req, res) => {
 
 const getCanvas = async (req, res) => {
   const canvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
-  if (!canvas) {
-    return res.status(404).send('Canvas not found');
+  if (!canvas || canvas.solved) {
+    // response opacity 0 to hide canvas
+    const iframe = /* html */`
+    <!DOCTYPE html>
+    <html lang="zh-tw">
+    <head>
+      <meta charset="UTF-8">
+      <title>guessAI Canvas</title>
+    </head>
+    <style>
+      body, html {
+        opacity: 0;
+      }
+    </style>
+    <body>
+    </body>`;
+    return res.send(iframe);
   }
   const iframe = /* html */`
   <!DOCTYPE html>
