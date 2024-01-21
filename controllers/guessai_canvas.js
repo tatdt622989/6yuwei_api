@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const OpenAI = require('openai');
 const path = require('path');
+const fs = require('fs');
 
 const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
 const openai = new OpenAI({
@@ -213,7 +214,7 @@ const getRanking = async (req, res) => {
 };
 
 const updateSimpleUser = async (req, res) => {
-  const { score } = req.body;
+  // const { score } = req.body;
   const token = req.cookies.guessai_canvas_access_token;
 
   if (!token) {
@@ -226,10 +227,31 @@ const updateSimpleUser = async (req, res) => {
       if (!simpleUser) {
         return res.status(403).send('User not found');
       }
-      simpleUser.score = score;
+
+      const filename = req.file?.filename;
+
+      if (filename) {
+        // delete old photo
+        const oldPhoto = simpleUser.photo;
+        if (oldPhoto) {
+          try {
+            const oldPhotoPath = path.join(__dirname, `../uploads/guessai_canvas/img/${oldPhoto}`);
+            fs.unlinkSync(oldPhotoPath);
+            simpleUser.photo = filename;
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      }
+
       await simpleUser.save();
-      return res.json(simpleUser);
+
+      return res.json({
+        message: 'success',
+        simpleUser,
+      });
     }
+
     if (err) {
       if (err.name === 'TokenExpiredError') {
         return res.status(403).send('Login timeout, please login again');
@@ -241,7 +263,7 @@ const updateSimpleUser = async (req, res) => {
   });
 
   return null;
-}
+};
 
 module.exports = {
   createSimpleUser,
