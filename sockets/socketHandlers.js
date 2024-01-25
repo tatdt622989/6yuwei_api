@@ -37,7 +37,7 @@ module.exports = (io, socket, accessToken) => {
           },
           {
             role: 'user',
-            content: `Using '${theme.themeEN}' as the theme, provide me with HTML canvas code, and return it in JSON format, within the constraint of 4500 characters.`,
+            content: `Using '${theme.themeEN}' as the theme, provide me with HTML canvas code, and return it in JSON format, within the constraint of 4500 characters.Don't write comments.Don't write theme in code`,
           },
         ],
         temperature: 1,
@@ -76,6 +76,90 @@ module.exports = (io, socket, accessToken) => {
       state.isCanvasGenerating = false;
       // retry
       // generateCanvas();
+    }
+
+    // If the code contains an answer, remove it as a random English word.
+    // If a reserved word does not replace
+    const reservedWords = [
+      'abstract',
+      'arguments',
+      'await',
+      'boolean',
+      'break',
+      'byte',
+      'case',
+      'catch',
+      'char',
+      'class',
+      'const',
+      'continue',
+      'debugger',
+      'default',
+      'delete',
+      'do',
+      'double',
+      'else',
+      'enum',
+      'eval',
+      'export',
+      'extends',
+      'false',
+      'final',
+      'finally',
+      'float',
+      'for',
+      'function',
+      'goto',
+      'if',
+      'implements',
+      'import',
+      'in',
+      'instanceof',
+      'int',
+      'interface',
+      'let',
+      'long',
+      'native',
+      'new',
+      'null',
+      'package',
+      'private',
+      'protected',
+      'public',
+      'return',
+      'short',
+      'static',
+      'super',
+      'switch',
+      'synchronized',
+      'this',
+      'throw',
+      'throws',
+      'transient',
+      'true',
+      'try',
+      'typeof',
+      'var',
+      'void',
+      'volatile',
+      'while',
+      'with',
+      'yield',
+    ];
+    if (!reservedWords.includes(theme.themeEN.toLowerCase())) {
+      content.code = content.code.replace(theme.themeEN, '');
+      const atoz = 'abcdefghijklmnopqrstuvwxyz';
+      const wordLength = 5;
+      let randomEN = '';
+      for (let i = 0; i < wordLength; i += 1) {
+        randomEN += atoz[Math.floor(Math.random() * atoz.length)];
+      }
+      // capitalize first letter
+      let answer = theme.themeEN.charAt(0).toUpperCase() + theme.themeEN.slice(1);
+      content.code = content.code.replace(answer, randomEN);
+      // lowercase
+      answer = answer.toLowerCase();
+      content.code = content.code.replace(answer, randomEN);
     }
 
     // save canvas to db
@@ -206,7 +290,7 @@ module.exports = (io, socket, accessToken) => {
       const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
         .sort({ createdAt: -1 });
       const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
-      if (!hasCorrect && differenceInMinutes > 10 && attemptData.length > 20) {
+      if (!hasCorrect && differenceInMinutes > 8 && attemptData.length > 20) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',
