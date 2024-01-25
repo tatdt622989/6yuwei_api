@@ -37,7 +37,7 @@ module.exports = (io, socket, accessToken) => {
           },
           {
             role: 'user',
-            content: `Using '${theme.themeEN}' as the theme, provide me with HTML canvas code, and return it in JSON format, within the constraint of 4500 characters.Don't write comments.Don't write theme in code`,
+            content: `Using '${theme.themeEN}' as the theme, provide me with HTML canvas code, and return it in JSON format, within the constraint of 5000 characters.`,
           },
         ],
         temperature: 1,
@@ -46,7 +46,7 @@ module.exports = (io, socket, accessToken) => {
             type: 'function',
             function: {
               name: 'canvasDraw',
-              description: 'Draw a canvas image that fits the theme using Canvas and JavaScript, without including any <html> tags. The canvas ratio should be 16:9.',
+              description: 'Draw a canvas image that fits the theme using Canvas and JavaScript, without including any <html> tags. The canvas ratio should be 16:9.No comments are allowed in the code.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -147,19 +147,25 @@ module.exports = (io, socket, accessToken) => {
       'yield',
     ];
     if (!reservedWords.includes(theme.themeEN.toLowerCase())) {
-      content.code = content.code.replace(theme.themeEN, '');
       const atoz = 'abcdefghijklmnopqrstuvwxyz';
       const wordLength = 5;
       let randomEN = '';
       for (let i = 0; i < wordLength; i += 1) {
         randomEN += atoz[Math.floor(Math.random() * atoz.length)];
       }
-      // capitalize first letter
-      let answer = theme.themeEN.charAt(0).toUpperCase() + theme.themeEN.slice(1);
-      content.code = content.code.replace(answer, randomEN);
-      // lowercase
-      answer = answer.toLowerCase();
-      content.code = content.code.replace(answer, randomEN);
+      const answers = [
+        theme.themeEN.toLowerCase(), // lowercase
+        theme.themeEN.toLowerCase().charAt(0).toUpperCase()
+         + theme.themeEN.toLowerCase().slice(1), // capitalize first letter
+        theme.themeEN.toUpperCase(), // capitalize all letters
+        theme.themeEN.toLowerCase().replace(' ', '-'), // dash
+        theme.themeEN.toLowerCase().replace(' ', '_'), // underscore
+        theme.themeEN.toLowerCase().replace(' ', ''), // remove space
+        theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase(), // remove space and capitalize first letter
+      ];
+      for (let i = 0; i < answers.length; i += 1) {
+        content.code = content.code.replace(new RegExp(answers[i], 'g'), randomEN);
+      }
     }
 
     // save canvas to db
