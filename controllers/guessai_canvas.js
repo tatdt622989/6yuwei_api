@@ -309,10 +309,12 @@ const getCanvasList = async (req, res) => {
   if (Number(page) < 1) {
     return res.status(404).send('Not found');
   }
-  let totalPage = await GuessAICanvas.countDocuments() / 12;
+  let totalPage = await (GuessAICanvas.countDocuments() - 1) / 12;
   totalPage = Math.ceil(totalPage);
   const canvasList = await GuessAICanvas
     .find().sort({ createdAt: -1 }).skip((page - 1) * 12).limit(12);
+  // 刪除第一筆資料
+  canvasList.shift();
   if (!canvasList) {
     return res.status(404).send('Not found');
   }
