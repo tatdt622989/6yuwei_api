@@ -312,9 +312,9 @@ const getCanvasList = async (req, res) => {
   let totalPage = (await GuessAICanvas.countDocuments() - 1) / 12;
   totalPage = Math.ceil(totalPage);
   // start with 1 index
-  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: 1 }).limit(1);
+  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
   // eslint-disable-next-line no-underscore-dangle
-  const canvasList = await GuessAICanvas.find({ _id: { $ne: firstCanvas._id } }).populate('user').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
+  const canvasList = await GuessAICanvas.find({ _id: { $ne: firstCanvas._id } }).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
     .limit(12);
   if (!canvasList) {
     return res.status(404).send('Not found');
