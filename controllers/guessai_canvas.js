@@ -312,6 +312,9 @@ const getCanvasList = async (req, res) => {
   const totalData = await GuessAICanvas.countDocuments() - 1;
   let totalPage = totalData / 12;
   totalPage = Math.ceil(totalPage);
+  if (Number(page) > totalPage) {
+    return res.status(404).send('Not found');
+  }
   const solvedCanvasCount = await GuessAICanvas.countDocuments({ solved: true });
   // start with 1 index
   const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
