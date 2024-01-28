@@ -65,7 +65,7 @@ const createSimpleUser = async (req, res) => {
     message: 'Registration Success',
     id: simpleUser.id,
     name: simpleUser.name,
-    photo: `${apiDomain}guessai_canvas/user_photo/${simpleUser.photo}/`,
+    photo: simpleUser.photo,
     score: simpleUser.score,
   });
 };
@@ -276,11 +276,11 @@ const updateSimpleUser = async (req, res) => {
           try {
             const oldPhotoPath = path.join(__dirname, `../uploads/guessai_canvas/img/${oldPhoto}`);
             fs.unlinkSync(oldPhotoPath);
-            simpleUser.photo = filename;
           } catch (error) {
             console.error(error);
           }
         }
+        simpleUser.photo = filename;
       }
 
       await simpleUser.save();
