@@ -38,6 +38,8 @@ const publicRoutes = [
   '/guessai_canvas/msg_list/',
   '/guessai_canvas/',
   '/guessai_canvas/canvas/',
+  '/guessai_canvas/canvas/[0-9a-fA-F]{24}/',
+  '/guessai_canvas/canvas_list/',
   '/guessai_canvas/ranking/',
   '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
 ];

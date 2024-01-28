@@ -93,6 +93,19 @@ router.get('/canvas/', helmet(
     },
   },
 ), guessAICanvasController.getCanvas);
+router.get('/canvas/:id/', helmet(
+  {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'", 'https://app.6yuwei.com'],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
+        frameAncestors: ["'self'", 'https://app.6yuwei.com'],
+      },
+    },
+  },
+), guessAICanvasController.getGalleryCanvas);
 router.get('/ranking/', guessAICanvasController.getRanking);
+router.get('/canvas_list/', guessAICanvasController.getCanvasList);
 
 module.exports = router;

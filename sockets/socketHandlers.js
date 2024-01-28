@@ -29,7 +29,7 @@ module.exports = (io, socket, accessToken) => {
 
     try {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-1106-preview',
+        model: 'gpt-4-0125-preview',
         messages: [
           {
             role: 'system',
@@ -145,6 +145,9 @@ module.exports = (io, socket, accessToken) => {
       'while',
       'with',
       'yield',
+      'Math',
+      'Array',
+      'Date',
     ];
     if (!reservedWords.includes(theme.themeEN.toLowerCase())) {
       const atoz = 'abcdefghijklmnopqrstuvwxyz';
@@ -154,6 +157,7 @@ module.exports = (io, socket, accessToken) => {
         randomEN += atoz[Math.floor(Math.random() * atoz.length)];
       }
       const answers = [
+        theme.themeEN, // original
         theme.themeEN.toLowerCase(), // lowercase
         theme.themeEN.toLowerCase().charAt(0).toUpperCase()
          + theme.themeEN.toLowerCase().slice(1), // capitalize first letter
@@ -161,7 +165,7 @@ module.exports = (io, socket, accessToken) => {
         theme.themeEN.toLowerCase().replace(' ', '-'), // dash
         theme.themeEN.toLowerCase().replace(' ', '_'), // underscore
         theme.themeEN.toLowerCase().replace(' ', ''), // remove space
-        theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase(), // remove space and capitalize first letter
+        theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase() + theme.themeEN.toLowerCase().replace(' ', '').slice(1), // remove space and capitalize first letter
       ];
       for (let i = 0; i < answers.length; i += 1) {
         content.code = content.code.replace(new RegExp(answers[i], 'g'), randomEN);
@@ -296,7 +300,7 @@ module.exports = (io, socket, accessToken) => {
       const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
         .sort({ createdAt: -1 });
       const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
-      if (!hasCorrect && differenceInMinutes > 8 && attemptData.length > 20) {
+      if (!hasCorrect && differenceInMinutes > 8 && attemptData.length > 15) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',

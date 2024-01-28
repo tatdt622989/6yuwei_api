@@ -208,6 +208,45 @@ const getCanvas = async (req, res) => {
   return res.send(iframe);
 };
 
+const getGalleryCanvas = async (req, res) => {
+  const { id } = req.params;
+  const canvas = await GuessAICanvas.findById(id);
+  if (!canvas) {
+    return res.status(404).send('Not found');
+  }
+  const iframe = /* html */`
+  <!DOCTYPE html>
+  <html lang="zh-tw">
+  <head>
+    <meta charset="UTF-8">
+    <title>guessAI Canvas</title>
+  </head>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #EAE0D5 !important;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  </style>
+  <body>
+    ${canvas.canvas}
+  </body>
+  </html>
+  `;
+
+  return res.send(iframe);
+};
+
 const getRanking = async (req, res) => {
   const users = await SimpleUser.find().sort({ score: -1 }).limit(30);
   return res.json(users);
@@ -265,13 +304,34 @@ const updateSimpleUser = async (req, res) => {
   return null;
 };
 
+const getCanvasList = async (req, res) => {
+  const { page } = req.query;
+  if (Number(page) < 1) {
+    return res.status(404).send('Not found');
+  }
+  let totalPage = await GuessAICanvas.countDocuments() / 12;
+  totalPage = Math.ceil(totalPage);
+  const canvasList = await GuessAICanvas
+    .find().sort({ createdAt: -1 }).skip((page - 1) * 12).limit(12);
+  if (!canvasList) {
+    return res.status(404).send('Not found');
+  }
+  return res.json({
+    canvasList,
+    currentPage: Number(page),
+    totalPage,
+  });
+};
+
 module.exports = {
   createSimpleUser,
   createTheme,
   updateSimpleUser,
   getSimpleUser,
   getCanvas,
+  getCanvasList,
   getUserPhoto,
   getMsgList,
   getRanking,
+  getGalleryCanvas,
 };
