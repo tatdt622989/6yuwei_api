@@ -33,11 +33,13 @@ module.exports = (io, socket, accessToken) => {
         messages: [
           {
             role: 'system',
-            content: 'You are an HTML canvas expert and a painter who specializes in generating code based on themes, with an emphasis on code security.',
+            content: 'As an HTML canvas expert and a code artist specializing in theme-based creations, with a keen emphasis on both the aesthetic intricacies and the security of the generated code, I strive to bring forth a unique fusion of technology and artistry.',
           },
           {
             role: 'user',
-            content: `Using '${theme.themeEN}' as the theme, provide me with HTML canvas code, and return it in JSON format, within the constraint of 5000 characters.`,
+            content: `
+            Create HTML canvas code with '${theme.themeEN}' as the theme, and return it in JSON format within the constraint of 5000 characters.
+            Emphasize the need for the drawing to be as intricate and lifelike as possible.`,
           },
         ],
         temperature: 1,
@@ -300,7 +302,7 @@ module.exports = (io, socket, accessToken) => {
       const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
         .sort({ createdAt: -1 });
       const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
-      if (!hasCorrect && differenceInMinutes > 8 && attemptData.length > 15) {
+      if (!hasCorrect && differenceInMinutes > 5 && attemptData.length > 15) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',

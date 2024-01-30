@@ -187,9 +187,10 @@ const getCanvas = async (req, res) => {
     body, html {
       margin: 0;
       padding: 0;
-      background-color: #000;
+      background-color: #eae0d5;
       width: 100%;
       height: 100%;
+      overflow: hidden;
     }
     canvas {
       display: block;
