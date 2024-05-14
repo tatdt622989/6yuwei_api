@@ -104,29 +104,24 @@ app.use('/guessai_canvas/', guessAICanvasRouter);
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
 });
-// app.get('/chat/', async (req, res) => {
-//   const { prompt, systemPrompt } = req.query;
-//   const configuration = new Configuration({
-//     apiKey: OpenAIAPIKey,
-//   });
-//   const openai = new OpenAIApi(configuration);
-//   try {
-//     const response = await openai.createChatCompletion({
-//       model: 'gpt-4-1106-preview',
-//       messages: [
-//         { role: 'system', content: systemPrompt },
-//         { role: 'user', content: prompt },
-//       ],
-//       temperature: 1,
-//       // max_tokens: 4096,
-//     });
-//     const { content } = response.data.choices[0].message;
-//     res.json(content);
-//   } catch (err) {
-//     console.log(err);
-//     res.status(500).send('error');
-//   }
-// });
+
+app.get('/chat/', async (req, res) => {
+  const { prompt, systemPrompt } = req.query;
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    });
+    const { content } = response.data.choices[0].message;
+    res.json(content);
+  } catch (err) {
+    console.log(err);
+    res.status(500).send('error');
+  }
+});
 
 // api test
 app.get('/test/', requireAdmin, (req, res) => {
