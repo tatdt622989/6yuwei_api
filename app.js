@@ -115,7 +115,7 @@ app.get('/chat/', async (req, res) => {
         { role: 'user', content: prompt },
       ],
     });
-    const { content } = response.data.choices[0].message;
+    const { content } = response.choices[0].message;
     res.json(content);
   } catch (err) {
     console.log(err);
