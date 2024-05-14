@@ -105,6 +105,7 @@ router.get('/canvas/:id/', helmet(
     },
   },
 ), guessAICanvasController.getGalleryCanvas);
+router.put('/canvas/', guessAICanvasController.updateCanvas);
 router.get('/ranking/', guessAICanvasController.getRanking);
 router.get('/canvas_list/', guessAICanvasController.getCanvasList);
 

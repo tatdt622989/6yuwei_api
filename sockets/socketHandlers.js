@@ -29,7 +29,7 @@ module.exports = (io, socket, accessToken) => {
 
     try {
       const response = await openai.chat.completions.create({
-        model: 'gpt-4-0125-preview',
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
@@ -39,7 +39,7 @@ module.exports = (io, socket, accessToken) => {
             role: 'user',
             content: `
             Create HTML canvas code with '${theme.themeEN}' as the theme, and return it in JSON format within the constraint of 5000 characters.
-            Emphasize the need for the drawing to be as intricate and lifelike as possible.`,
+            Emphasize the need for the drawing to be as intricate and lifelike as possible.Do not omit.`,
           },
         ],
         temperature: 1,
@@ -302,7 +302,7 @@ module.exports = (io, socket, accessToken) => {
       const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
         .sort({ createdAt: -1 });
       const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
-      if (!hasCorrect && differenceInMinutes > 5 && attemptData.length > 15) {
+      if (!hasCorrect && differenceInMinutes > 4 && attemptData.length > 5) {
         // emit canvas to all clients
         io.emit('server canvas', {
           status: 'info',

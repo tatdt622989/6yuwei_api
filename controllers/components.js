@@ -141,7 +141,7 @@ const generateComponent = async (req, res) => {
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-1106-preview',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -297,7 +297,7 @@ const updateComponent = async (req, res) => {
     }
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4-1106-preview',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: 'You are a proficient Front-End Engineer with expertise in HTML and CSS, committed to creating safe and high-quality web designs, while also being an outstanding animator.' },
         {
