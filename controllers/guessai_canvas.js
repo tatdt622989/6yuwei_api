@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 const jwt = require('jsonwebtoken');
 const OpenAI = require('openai');
 const path = require('path');
@@ -313,7 +314,16 @@ const getCanvasList = async (req, res) => {
   if (Number(page) < 1) {
     return res.status(404).send('Not found');
   }
-  const query = {};
+  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
+  const totalData = await GuessAICanvas.countDocuments({ $ne: firstCanvas._id });
+  let totalPage = totalData / 12;
+  totalPage = Math.ceil(totalPage);
+  if (Number(page) > totalPage) {
+    return res.status(404).send('Not found');
+  }
+  const solvedCanvasCount = await GuessAICanvas
+    .countDocuments({ correctRespondent: { $exists: true }, $ne: firstCanvas._id });
+  const query = { $ne: firstCanvas._id };
   if (keyword) {
     const keywordFilter = xss(keyword);
     query.$or = [
@@ -322,18 +332,6 @@ const getCanvasList = async (req, res) => {
       { answerJP: { $regex: keywordFilter, $options: 'i' } },
     ];
   }
-  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
-  // eslint-disable-next-line no-underscore-dangle
-  query._id = { $ne: firstCanvas._id };
-  const totalData = await GuessAICanvas.countDocuments(query);
-  let totalPage = totalData / 12;
-  totalPage = Math.ceil(totalPage);
-  if (Number(page) > totalPage) {
-    return res.status(404).send('Not found');
-  }
-  // eslint-disable-next-line no-underscore-dangle
-  const solvedCanvasCount = await GuessAICanvas
-    .countDocuments({ correctRespondent: { $exists: true }, ...query });
   const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
     .limit(12);
   if (!canvasList) {
