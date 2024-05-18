@@ -329,14 +329,9 @@ const getCanvasList = async (req, res) => {
   }
   const resultTotal = await GuessAICanvas.countDocuments(query);
   const resultTotalPage = Math.ceil(resultTotal / 12);
-  if (Number(page) > resultTotalPage) {
-    return res.status(404).send('Not found');
-  }
   const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
     .limit(12);
-  if (!canvasList) {
-    return res.status(404).send('Not found');
-  }
+
   return res.json({
     canvasList,
     currentPage: Number(page),
