@@ -315,12 +315,7 @@ const getCanvasList = async (req, res) => {
     return res.status(404).send('Not found');
   }
   const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
-  const totalData = await GuessAICanvas.countDocuments({ $ne: firstCanvas._id });
-  let totalPage = totalData / 12;
-  totalPage = Math.ceil(totalPage);
-  if (Number(page) > totalPage) {
-    return res.status(404).send('Not found');
-  }
+  const total = await GuessAICanvas.countDocuments({ $ne: firstCanvas._id });
   const solvedCanvasCount = await GuessAICanvas
     .countDocuments({ correctRespondent: { $exists: true }, $ne: firstCanvas._id });
   const query = { $ne: firstCanvas._id };
@@ -332,6 +327,11 @@ const getCanvasList = async (req, res) => {
       { answerJP: { $regex: keywordFilter, $options: 'i' } },
     ];
   }
+  const resultTotal = await GuessAICanvas.countDocuments(query);
+  const resultTotalPage = Math.ceil(resultTotal / 12);
+  if (Number(page) > resultTotalPage) {
+    return res.status(404).send('Not found');
+  }
   const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
     .limit(12);
   if (!canvasList) {
@@ -340,9 +340,10 @@ const getCanvasList = async (req, res) => {
   return res.json({
     canvasList,
     currentPage: Number(page),
-    total: totalData,
-    solvedProbability: Number(((solvedCanvasCount / totalData) * 100).toFixed(2)),
-    totalPage,
+    solvedProbability: Number(((solvedCanvasCount / total) * 100).toFixed(2)),
+    resultTotal,
+    resultTotalPage,
+    total,
   });
 };
 
