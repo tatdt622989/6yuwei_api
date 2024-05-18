@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const OpenAI = require('openai');
 const path = require('path');
 const fs = require('fs');
+const xss = require('xss');
 
 const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
 const openai = new OpenAI({
@@ -305,25 +306,35 @@ const updateSimpleUser = async (req, res) => {
   return null;
 };
 
-const updateCanvas = async (req, res) => {};
+const updateCanvas = async (req, res) => { };
 
 const getCanvasList = async (req, res) => {
-  const { page } = req.query;
+  const { page, keyword } = req.query;
   if (Number(page) < 1) {
     return res.status(404).send('Not found');
   }
-  const totalData = await GuessAICanvas.countDocuments() - 1;
+  const query = {};
+  if (keyword) {
+    const keywordFilter = xss(keyword);
+    query.$or = [
+      { answerTW: { $regex: keywordFilter, $options: 'i' } },
+      { answerEN: { $regex: keywordFilter, $options: 'i' } },
+      { answerJP: { $regex: keywordFilter, $options: 'i' } },
+    ];
+  }
+  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
+  // eslint-disable-next-line no-underscore-dangle
+  query._id = { $ne: firstCanvas._id };
+  const totalData = await GuessAICanvas.countDocuments(query);
   let totalPage = totalData / 12;
   totalPage = Math.ceil(totalPage);
   if (Number(page) > totalPage) {
     return res.status(404).send('Not found');
   }
-  const solvedCanvasCount = await GuessAICanvas
-    .countDocuments({ correctRespondent: { $exists: true } });
-  // start with 1 index
-  const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
   // eslint-disable-next-line no-underscore-dangle
-  const canvasList = await GuessAICanvas.find({ _id: { $ne: firstCanvas._id } }).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
+  const solvedCanvasCount = await GuessAICanvas
+    .countDocuments({ correctRespondent: { $exists: true }, ...query });
+  const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
     .limit(12);
   if (!canvasList) {
     return res.status(404).send('Not found');
