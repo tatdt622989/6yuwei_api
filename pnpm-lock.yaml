@@ -8,6 +8,12 @@ dependencies:
   '@google-cloud/recaptcha-enterprise':
     specifier: ^3.4.1
     version: 3.4.1
+  '@socket.io/cluster-adapter':
+    specifier: ^0.2.2
+    version: 0.2.2(socket.io-adapter@2.5.2)
+  '@socket.io/sticky':
+    specifier: ^1.0.4
+    version: 1.0.4
   bcrypt:
     specifier: ^5.1.0
     version: 5.1.1
@@ -1322,8 +1328,24 @@ packages:
     dev: false
     optional: true
 
+  /@socket.io/cluster-adapter@0.2.2(socket.io-adapter@2.5.2):
+    resolution: {integrity: sha512-/tNcY6qQx0BOgjl4mFk3YxX6pjaPdEyeWhP88Ea9gTlISY4SfA7t8VxbryeAs5/9QgXzChlvSN/i37Gog3kWag==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      socket.io-adapter: ^2.4.0
+    dependencies:
+      debug: 4.3.4
+      socket.io-adapter: 2.5.2
+    transitivePeerDependencies:
+      - supports-color
+    dev: false
+
   /@socket.io/component-emitter@3.1.0:
     resolution: {integrity: sha512-+9jVqKhRSpsc591z5vX+X5Yyw+he/HCB4iQ/RYxw35CEPaY1gnsNE43nf9n9AaYjAQrTiI/mOwKUKdUs9vf7Xg==}
+    dev: false
+
+  /@socket.io/sticky@1.0.4:
+    resolution: {integrity: sha512-VuauT5CJLvzYtKIgouFSQ8rUaygseR+zRutnwh6ZA2QYcXx+8g52EoJ8V2SLxfo+Tfs3ELUDy08oEXxlWNrxaw==}
     dev: false
 
   /@types/cookie@0.4.1:

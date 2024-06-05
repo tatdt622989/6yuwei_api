@@ -315,10 +315,10 @@ const getCanvasList = async (req, res) => {
     return res.status(404).send('Not found');
   }
   const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
-  const total = await GuessAICanvas.countDocuments({ $ne: firstCanvas._id });
+  const total = await GuessAICanvas.countDocuments({ _id: { $ne: firstCanvas._id } });
   const solvedCanvasCount = await GuessAICanvas
-    .countDocuments({ correctRespondent: { $exists: true }, $ne: firstCanvas._id });
-  const query = { $ne: firstCanvas._id };
+    .countDocuments({ correctRespondent: { $exists: true }, _id: { $ne: firstCanvas._id } });
+  const query = { _id: { $ne: firstCanvas._id } };
   if (keyword) {
     const keywordFilter = xss(keyword);
     query.$or = [

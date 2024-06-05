@@ -1,4 +1,6 @@
 const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/cluster-adapter');
+const { setupWorker } = require('@socket.io/sticky');
 const socketHandlers = require('./socketHandlers');
 
 const env = process.env.NODE_ENV;
@@ -16,6 +18,11 @@ module.exports = (server) => {
       credentials: true,
     },
   });
+
+  if (process.env.NODE_ENV === 'production') {
+    io.adapter(createAdapter());
+    setupWorker(io);
+  }
 
   // socket.io
   io.on('connection', (socket) => {

@@ -251,6 +251,9 @@ router.get('/loginStatus/', async (req, res) => {
         }
         // 尋找用戶
         const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(403).send('User not found');
+        }
         return res.json({
           msg: 'Logged in',
           user: {
