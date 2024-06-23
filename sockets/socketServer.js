@@ -19,10 +19,10 @@ module.exports = (server) => {
     },
   });
 
-  if (process.env.NODE_ENV === 'production') {
-    io.adapter(createAdapter());
-    setupWorker(io);
-  }
+  // if (process.env.NODE_ENV === 'production') {
+  //   io.adapter(createAdapter());
+  //   setupWorker(io);
+  // }
 
   // socket.io
   io.on('connection', (socket) => {

@@ -17,6 +17,7 @@ const getData = async (req, res) => {
       { email: { $regex: keywordFilter, $options: 'i' } },
     ];
   }
+  console.log(query);
 
   try {
     const total = await User.countDocuments(query);

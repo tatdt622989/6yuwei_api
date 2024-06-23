@@ -203,10 +203,10 @@ router.get('/admin/', requireAdmin, async (req, res) => {
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
     const total = await Animation.countDocuments({
-      $or: [{ title: { $regex: regex } }, { url: { $regex: regex } }],
+      $or: [{ title: { $regex: regex } }, { description: { $regex: regex } }],
     });
     const list = await Animation.find({
-      $or: [{ title: { $regex: regex } }, { url: { $regex: regex } }],
+      $or: [{ title: { $regex: regex } }, { description: { $regex: regex } }],
     })
       .skip(skip)
       .limit(pageSize)
