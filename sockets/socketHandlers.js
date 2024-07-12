@@ -23,7 +23,7 @@ module.exports = (io, socket, accessToken) => {
     // get theme from db
     const themeCount = await Theme.countDocuments();
     const random = Math.floor(Math.random() * themeCount);
-    const theme = await Theme.findOne().skip(random);
+    const theme = await Theme.findOne ).skip(random);
 
     // generate canvas
 
@@ -48,7 +48,7 @@ module.exports = (io, socket, accessToken) => {
             type: 'function',
             function: {
               name: 'canvasDraw',
-              description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any other HTML tags, image URLs, or comments in the code.',
+              description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any other HTML tags, image URLs, or comments in the code.Remember to include line breaks.',
               parameters: {
                 type: 'object',
                 properties: {
