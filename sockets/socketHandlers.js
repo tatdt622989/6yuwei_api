@@ -39,7 +39,7 @@ module.exports = (io, socket, accessToken) => {
             role: 'user',
             content: `
             Create HTML canvas code with '${theme.themeEN}' as the theme, and return it in JSON format within the constraint of 5000 characters.
-            Emphasize the need for the drawing to be as intricate and lifelike as possible.Do not omit.`,
+            Emphasize the need for the drawing to be as intricate and lifelike as possible.Do not omit.Do not include any other HTML tags, image URLs, or JavaScript comments in the code.`,
           },
         ],
         temperature: 1,
@@ -48,7 +48,7 @@ module.exports = (io, socket, accessToken) => {
             type: 'function',
             function: {
               name: 'canvasDraw',
-              description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any other HTML tags, image URLs, or comments in the code.Remember to include line breaks.',
+              description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any other HTML tags, image URLs, or JavaScript comments in the code.',
               parameters: {
                 type: 'object',
                 properties: {
