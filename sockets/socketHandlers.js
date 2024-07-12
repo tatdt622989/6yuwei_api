@@ -23,7 +23,7 @@ module.exports = (io, socket, accessToken) => {
     // get theme from db
     const themeCount = await Theme.countDocuments();
     const random = Math.floor(Math.random() * themeCount);
-    const theme = await Theme.findOne ).skip(random);
+    const theme = await Theme.findOne().skip(random);
 
     // generate canvas
 
