@@ -48,7 +48,7 @@ module.exports = (io, socket, accessToken) => {
             type: 'function',
             function: {
               name: 'canvasDraw',
-              description: 'Draw a canvas image that fits the theme using Canvas and JavaScript, without including any <html> tags. The canvas ratio should be 16:9.No comments are allowed in the code.',
+              description: 'Draw a canvas image that fits the theme using Canvas and JavaScript with a 16:9 aspect ratio. Do not include any <html> tags, use image URLs, or include comments in the code.',
               parameters: {
                 type: 'object',
                 properties: {
