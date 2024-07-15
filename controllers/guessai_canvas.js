@@ -10,7 +10,7 @@ const openai = new OpenAI({
   apiKey: OpenAIAPIKey,
 });
 
-const socketState = require('./socketState');
+const socketState = require('../sockets/socketState');
 const state = socketState.getSocketState();
 
 const apiDomain = process.env.API_DOMAIN;

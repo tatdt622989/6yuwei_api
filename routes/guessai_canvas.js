@@ -7,6 +7,8 @@ const fs = require('fs');
 const helmet = require('helmet');
 const guessAICanvasController = require('../controllers/guessai_canvas');
 
+const { requireAdmin } = require('../middlewares/auth');
+
 // multer 設定
 const guessAICanvasStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -108,5 +110,6 @@ router.get('/canvas/:id/', helmet(
 router.put('/canvas/', guessAICanvasController.updateCanvas);
 router.get('/ranking/', guessAICanvasController.getRanking);
 router.get('/canvas_list/', guessAICanvasController.getCanvasList);
+router.get('/generate/', requireAdmin, guessAICanvasController.generateCanvas); // 需要有官網會員管理權限才能使用
 
 module.exports = router;
