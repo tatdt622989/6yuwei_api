@@ -10,8 +10,8 @@ const openai = new OpenAI({
   apiKey: OpenAIAPIKey,
 });
 
-const socketState = require('../sockets/socketState');
-const state = socketState.getSocketState();
+const { setSocketState, getSocketState } = require('../sockets/socketState');
+const state = getSocketState();
 
 const apiDomain = process.env.API_DOMAIN;
 
@@ -350,7 +350,7 @@ const generateCanvas = async (io) => {
   if (state.isCanvasGenerating) {
     return;
   }
-  state.setSocketState('isCanvasGenerating', true);
+  setSocketState('isCanvasGenerating', true);
   let content = null;
 
   // get theme from db
@@ -402,14 +402,14 @@ const generateCanvas = async (io) => {
     console.log(content);
     if (!content
       || !content.code) {
-        state.setSocketState('isCanvasGenerating', false);
+        setSocketState('isCanvasGenerating', false);
       // retry
       // generateCanvas();
     }
     content = JSON.parse(content);
   } catch (err) {
     console.log(err);
-    state.setSocketState('isCanvasGenerating', false);
+    setSocketState('isCanvasGenerating', false);
     // retry
     // generateCanvas();
   }
@@ -535,7 +535,7 @@ const generateCanvas = async (io) => {
   
   console.log('generate canvas done');
   console.log(state.isCanvasGenerating);
-  state.setSocketState('isCanvasGenerating', false);
+  setSocketState('isCanvasGenerating', false);
   console.log(state.isCanvasGenerating);
   return 'ok';
 };
