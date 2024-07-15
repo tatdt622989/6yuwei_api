@@ -110,6 +110,6 @@ router.get('/canvas/:id/', helmet(
 router.put('/canvas/', guessAICanvasController.updateCanvas);
 router.get('/ranking/', guessAICanvasController.getRanking);
 router.get('/canvas_list/', guessAICanvasController.getCanvasList);
-router.get('/generate/', requireAdmin, guessAICanvasController.generateCanvas); // 需要有官網會員管理權限才能使用
+router.get('/generate/', requireAdmin, guessAICanvasController.forceGenerateCanvas); // 需要有官網會員管理權限才能使用
 
 module.exports = router;

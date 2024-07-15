@@ -534,11 +534,11 @@ const generateCanvas = async (io) => {
   }
   
   console.log('generate canvas done');
-  console.log(state.isCanvasGenerating);
   setSocketState('isCanvasGenerating', false);
-  console.log(state.isCanvasGenerating);
-  return 'ok';
+  return res.status(200).send({ status: 'done' });
 };
+
+const forceGenerateCanvas = async (req, res) => generateCanvas();
 
 module.exports = {
   createSimpleUser,
@@ -553,4 +553,5 @@ module.exports = {
   getRanking,
   getGalleryCanvas,
   generateCanvas,
+  forceGenerateCanvas
 };
