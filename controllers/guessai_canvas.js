@@ -372,7 +372,8 @@ const generateCanvas = async (io) => {
           role: 'user',
           content: `
           Create HTML canvas code with '${theme.themeEN}' as the theme, and return it in JSON format within the constraint of 5000 characters.
-          Emphasize the need for the drawing to be as intricate and lifelike as possible.Do not omit.Do not include any image URLs, or JavaScript comments in the code.`,
+          Emphasize the need for the drawing to be as intricate and lifelike as possible.
+          Do not omit and include any image URLs, or JavaScript comments in the code.`,
         },
       ],
       temperature: 1,
