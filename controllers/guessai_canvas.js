@@ -350,7 +350,7 @@ const generateCanvas = async (io) => {
   if (state.isCanvasGenerating) {
     return;
   }
-  state.isCanvasGenerating = true;
+  state.setSocketState('isCanvasGenerating', true);
   let content = null;
 
   // get theme from db
@@ -359,7 +359,6 @@ const generateCanvas = async (io) => {
   const theme = await Theme.findOne().skip(random);
 
   // generate canvas
-
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -403,14 +402,14 @@ const generateCanvas = async (io) => {
     console.log(content);
     if (!content
       || !content.code) {
-      state.isCanvasGenerating = false;
+        state.setSocketState('isCanvasGenerating', false);
       // retry
       // generateCanvas();
     }
     content = JSON.parse(content);
   } catch (err) {
     console.log(err);
-    state.isCanvasGenerating = false;
+    state.setSocketState('isCanvasGenerating', false);
     // retry
     // generateCanvas();
   }
@@ -535,7 +534,9 @@ const generateCanvas = async (io) => {
   }
   
   console.log('generate canvas done');
-  state.isCanvasGenerating = false;
+  console.log(state.isCanvasGenerating);
+  state.setSocketState('isCanvasGenerating', false);
+  console.log(state.isCanvasGenerating);
   return 'ok';
 };
 
