@@ -535,10 +535,12 @@ const generateCanvas = async (io) => {
   
   console.log('generate canvas done');
   setSocketState('isCanvasGenerating', false);
-  return res.status(200).send({ status: 'done' });
 };
 
-const forceGenerateCanvas = async (req, res) => generateCanvas();
+const forceGenerateCanvas = async (req, res) => {
+  await generateCanvas();
+  return res.status(200).send({ status: 'done' });
+};
 
 module.exports = {
   createSimpleUser,
