@@ -59,7 +59,11 @@ module.exports = (io, socket, accessToken) => {
         if (lowercaseMsg === answerTW
           || lowercaseMsg === lowercaseAnswerEN
           || lowercaseMsg === answerJP) {
-          generateCanvas(); // 答對後重新產生
+          await generateCanvas(); // 答對後重新產生
+          // emit canvas to all clients
+          io.emit('server canvas', {
+            status: 'done',
+          });
 
           // set message to db
           message.isCorrect = true;
@@ -115,7 +119,11 @@ module.exports = (io, socket, accessToken) => {
         });
         guessaiCanvas.solved = true;
         await guessaiCanvas.save();
-        generateCanvas(); // 沒人答對並達到限制後重新產生
+        await generateCanvas(); // 沒人答對並達到限制後重新產生
+        // emit canvas to all clients
+        io.emit('server canvas', {
+          status: 'done',
+        });
       }
 
       // emit message to all clients

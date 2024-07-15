@@ -526,11 +526,6 @@ const generateCanvas = async () => {
     console.log(err);
   }
 
-  // emit canvas to all clients
-  io.emit('server canvas', {
-    status: 'done',
-  });
-
   console.log('generate canvas done');
   state.isCanvasGenerating = false;
 };
