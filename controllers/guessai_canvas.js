@@ -532,9 +532,10 @@ const generateCanvas = async (io) => {
       status: 'done',
     });
   }
-
+  
   console.log('generate canvas done');
   state.isCanvasGenerating = false;
+  return 'ok';
 };
 
 module.exports = {
