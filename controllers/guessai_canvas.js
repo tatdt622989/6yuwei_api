@@ -345,7 +345,7 @@ const getCanvasList = async (req, res) => {
   });
 };
 
-const generateCanvas = async () => {
+const generateCanvas = async (io) => {
   console.log('generate canvas');
   if (state.isCanvasGenerating) {
     return;
@@ -399,7 +399,7 @@ const generateCanvas = async () => {
     });
 
     content = response.choices[0]?.message?.tool_calls[0]?.function.arguments;
-    console.log('content', content);
+    console.log(content);
     if (!content
       || !content.code) {
       state.isCanvasGenerating = false;
@@ -524,6 +524,13 @@ const generateCanvas = async () => {
     await guessaiCanvas.save();
   } catch (err) {
     console.log(err);
+  }
+
+  if (io) {
+    // emit canvas to all clients
+    io.emit('server canvas', {
+      status: 'done',
+    });
   }
 
   console.log('generate canvas done');
