@@ -387,7 +387,7 @@ const generateCanvas = async (io) => {
               properties: {
                 code: {
                   type: 'string',
-                  description: 'HTML canvas Tag with inline javascript',
+                  description: 'Program generated using <script> and <canvas> tags',
                 },
               },
               required: ['code'],
