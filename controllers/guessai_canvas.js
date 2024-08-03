@@ -387,7 +387,7 @@ const generateCanvas = async (io) => {
               properties: {
                 code: {
                   type: 'string',
-                  description: '使用包含 HTML 的 script 和 canvas 標籤產生的程式碼',
+                  description: 'HTML code that must and only include the <script> and <canvas> tags.',
                 },
               },
               required: ['code'],
