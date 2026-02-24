@@ -4,9 +4,11 @@ const { User } = require('../models/user');
 
 const publicRoutes = [
   '/login/',
+  '/app/login/',
   '/signup/',
   '/logout/',
   '/loginStatus/',
+  '/app/logout/',
   '/chat/',
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/',
@@ -31,6 +33,7 @@ const publicRoutes = [
   '/components/screenshot.js',
   '/components/screenshot_dev.js',
   '/googleLogin/',
+  '/app/googleLogin/',
   '/google/callback/',
   '/guessai_canvas/socket.io/',
   '/guessai_canvas/theme/',

@@ -10,6 +10,7 @@ const validator = require('validator');
 const passport = require('passport');
 
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const { OAuth2Client } = require('google-auth-library');
 const { requireUser, requireAdmin } = require('../middlewares/auth');
 
 // models
@@ -209,9 +210,137 @@ router.get('/google/callback/', passport.authenticate('google', { session: false
   res.redirect(`${process.env.FRONTEND_DOMAIN}admin/account/`);
 });
 
+// App 登入 (直接回傳 token)
+router.post('/app/login/', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (
+    !req.body
+    || !email
+    || !password
+    || validator.isEmpty(email)
+    || validator.isEmpty(password)
+    || !validator.isEmail(email)
+  ) {
+    return res.status(400).send('Please fill in the complete information');
+  }
+
+  // 尋找用戶
+  const user = await User.findOne({ email: { $eq: email } });
+
+  if (user) {
+    // 比對密碼
+    const isMatch = await user.comparePassword(password);
+
+    if (isMatch) {
+      // jwt token
+      const token = user.generateAuthToken();
+
+      return res.json({
+        msg: 'Login successful',
+        token,
+      });
+    }
+    return res.status(400).send('Incorrect password');
+  }
+
+  return res.status(400).send('User does not exist');
+});
+
+// App Google 登入
+router.post('/app/googleLogin/', async (req, res) => {
+  const { idToken, platform } = req.body;
+  // 根據 platform 來決定使用不同的 client ID
+  const clientId = platform === 'android' ? process.env.GOOGLE_ANDROID_CLIENT_ID : process.env.GOOGLE_IOS_CLIENT_ID;
+  const client = new OAuth2Client(clientId);
+
+  if (!idToken) {
+    return res.status(400).send('Please provided idToken');
+  }
+
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    const user = await new Promise((resolve, reject) => {
+      User.findOrCreate(
+        { email },
+        {
+          username: name,
+          externalPhoto: picture,
+        },
+        (err, data) => {
+          if (err) reject(err);
+          else resolve(data);
+        },
+      );
+    });
+
+    // jwt token
+    const token = user.generateAuthToken();
+
+    return res.json({
+      msg: 'Login successful',
+      token,
+      user: {
+        _id: user.id,
+        username: user.username,
+        email: user.email,
+        permissions: user.permissions,
+        photo: user.photo,
+        externalPhoto: user.externalPhoto,
+        phone: user.phone ?? '',
+        country: user.country ?? '',
+        birth: user.birth ?? '',
+        createdAt: user.createdAt,
+        balance: user.balance,
+      },
+    });
+  } catch (error) {
+    console.error('Google verification error:', error);
+    if (error.message && error.message.includes('Login Failure')) {
+      return res.status(500).send(error.message);
+    }
+    return res.status(400).send('Google verification failed');
+  }
+});
+
 // 登出
 router.post('/logout/', async (req, res) => {
   const token = req.cookies.access_token;
+  if (token) {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+      if (decoded) {
+        // check if the token is in the blacklist
+        const isTokenExist = await TokenBlackList.findOne({ token });
+        // if not, add it to the blacklist
+        if (!isTokenExist) {
+          const tokenBlackList = new TokenBlackList({
+            token,
+            expiresAt: new Date(decoded.exp * 1000),
+            issuedAt: new Date(decoded.iat * 1000),
+          });
+          await tokenBlackList.save().catch((dataErr) => {
+            res.status(500).send(`Logout Failure-${dataErr}`);
+          });
+        }
+      }
+      res.clearCookie('access_token');
+    });
+    return res.json({
+      msg: 'Successful logout',
+    });
+  }
+  return res.status(400).send('Please login first');
+});
+
+// App 登出
+router.post('/app/logout/', async (req, res) => {
+  const { token } = req.body;
   if (token) {
     await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
       if (decoded) {
