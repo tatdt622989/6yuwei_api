@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const cors = require('cors');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
@@ -11,7 +12,8 @@ const passport = require('passport');
 
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { OAuth2Client } = require('google-auth-library');
-const { requireUser, requireAdmin } = require('../middlewares/auth');
+const appleSignin = require('apple-signin-auth'); // 引入 apple-signin-auth
+const { requireUser } = require('../middlewares/auth');
 
 // models
 const { User } = require('../models/user');
@@ -210,6 +212,32 @@ router.get('/google/callback/', passport.authenticate('google', { session: false
   res.redirect(`${process.env.FRONTEND_DOMAIN}admin/account/`);
 });
 
+// App 專用 CORS 設定
+const appCorsOptions = {
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+
+    // 允許常見的 App Origin 以及 localhost
+    const allowedAppOrigins = [
+      'capacitor://localhost',
+      'ionic://localhost',
+      'http://localhost',
+      'https://localhost',
+    ];
+
+    if (allowedAppOrigins.includes(origin) || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
+  credentials: true,
+};
+
+// 將 App 專用 CORS 套用至所有的 /app/* 路由
+router.use('/app', cors(appCorsOptions));
+
 // App 登入 (直接回傳 token)
 router.post('/app/login/', async (req, res) => {
   const { email, password } = req.body;
@@ -306,6 +334,103 @@ router.post('/app/googleLogin/', async (req, res) => {
       return res.status(500).send(error.message);
     }
     return res.status(400).send('Google verification failed');
+  }
+});
+
+// App Apple 登入
+router.post('/app/appleLogin/', async (req, res) => {
+  const {
+    identityToken, authorizationCode, platform, email, name,
+  } = req.body;
+
+  if (!identityToken) {
+    return res.status(400).send('Please provide identityToken');
+  }
+
+  // 根據 platform 來決定使用不同的 client ID
+  let clientId = process.env.APPLE_CLIENT_ID;
+  if (platform === 'ios') clientId = process.env.APPLE_IOS_CLIENT_ID;
+  else if (platform === 'android') clientId = process.env.APPLE_ANDROID_CLIENT_ID;
+  else if (platform === 'web') clientId = process.env.APPLE_WEB_CLIENT_ID;
+
+  try {
+    // 1. 驗證 Apple Token
+    const payload = await appleSignin.verifyIdToken(identityToken, {
+      audience: clientId,
+      ignoreExpiration: true,
+    });
+
+    const appleId = payload.sub;
+    const userEmail = email || payload.email;
+
+    // 2. 尋找或創建用戶
+    const user = await new Promise((resolve, reject) => {
+      User.findOne({ $or: [{ appleId }, { email: userEmail }] }).then((doc) => {
+        if (doc) {
+          // 如果找到了但尚未綁定 appleId，則綁定
+          // eslint-disable-next-line no-param-reassign
+          if (!doc.appleId) doc.appleId = appleId;
+          resolve(doc);
+        } else {
+          // 如果找不到，自動註冊一個新帳號
+          User.create({
+            username: name || 'Apple User',
+            email: userEmail || `${appleId}@apple.com`, // 提供預設 dummy email 防止報錯
+            appleId,
+          }).then((newUser) => resolve(newUser)).catch(reject);
+        }
+      }).catch(reject);
+    });
+
+    // 3. (如果有授權碼) 換取並儲存 Refresh Token 供未來刪除帳號用
+    if (authorizationCode) {
+      try {
+        const clientSecret = appleSignin.getClientSecret({
+          clientID: clientId,
+          teamID: process.env.APPLE_TEAM_ID,
+          keyIdentifier: process.env.APPLE_KEY_ID,
+          privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH,
+        });
+
+        const tokenResponse = await appleSignin.getAuthorizationToken(authorizationCode, {
+          clientID: clientId,
+          clientSecret,
+        });
+
+        if (tokenResponse && tokenResponse.refresh_token) {
+          user.appleRefreshToken = tokenResponse.refresh_token;
+        }
+      } catch (tokenErr) {
+        console.error('Apple exchange token error:', tokenErr);
+      }
+    }
+
+    await user.save();
+
+    // 4. 核發專案 Token
+    const token = user.generateAuthToken();
+
+    return res.json({
+      msg: 'Login success',
+      token,
+      user: {
+        _id: user.id,
+        username: user.username,
+        email: user.email,
+        appleId: user.appleId,
+        permissions: user.permissions,
+        photo: user.photo,
+        externalPhoto: user.externalPhoto,
+        phone: user.phone ?? '',
+        country: user.country ?? '',
+        birth: user.birth ?? '',
+        createdAt: user.createdAt,
+        balance: user.balance,
+      },
+    });
+  } catch (error) {
+    console.error('Apple verification error:', error);
+    return res.status(400).send('Invalid token');
   }
 });
 
@@ -540,5 +665,84 @@ router.get('/user/balance/', requireUser, async (req, res) => {
 //     res.send(hash);
 //   });
 // });
+
+// App 刪除用戶與撤銷 Apple 授權
+router.post('/app/deleteUser/', async (req, res) => {
+  const { token, platform } = req.body;
+
+  if (token) {
+    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
+      if (err || !decoded) {
+        return res.status(403).send('Please login first');
+      }
+
+      // 檢查 Token 黑名單
+      const isTokenInBlackList = await TokenBlackList.findOne({ token });
+      if (isTokenInBlackList) {
+        return res.status(403).send('Login timeout, please login again');
+      }
+
+      try {
+        const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(403).send('User not found');
+        }
+
+        // --- 若為 Apple 登入用戶，執行撤銷授權 ---
+        if (user.appleId && user.appleRefreshToken) {
+          let clientId = process.env.APPLE_CLIENT_ID;
+          if (platform === 'ios') clientId = process.env.APPLE_IOS_CLIENT_ID;
+          else if (platform === 'android') clientId = process.env.APPLE_ANDROID_CLIENT_ID;
+          else if (platform === 'web') clientId = process.env.APPLE_WEB_CLIENT_ID;
+
+          const hasEnvs = process.env.APPLE_PRIVATE_KEY_PATH
+            && process.env.APPLE_TEAM_ID
+            && process.env.APPLE_KEY_ID;
+
+          if (hasEnvs) {
+            try {
+              const clientSecret = appleSignin.getClientSecret({
+                clientID: clientId,
+                teamID: process.env.APPLE_TEAM_ID,
+                keyIdentifier: process.env.APPLE_KEY_ID,
+                privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH,
+              });
+
+              await appleSignin.revokeAuthorizationToken(user.appleRefreshToken, {
+                clientID: clientId,
+                clientSecret,
+              });
+            } catch (revokeErr) {
+              console.error('Apple revoke error:', revokeErr);
+              // 記錄錯誤，但繼續刪除使用者帳號，以免卡住
+            }
+          } else {
+            console.warn('Apple App Delete: Missing environment variables for Client Secret generation. Skipping Revoke.');
+          }
+        }
+
+        // --- 執行本機資料庫使用者刪除 ---
+        await User.findByIdAndDelete(user._id);
+
+        // 將這把 Token 加入黑名單
+        const tokenBlackList = new TokenBlackList({
+          token,
+          expiresAt: new Date(decoded.exp * 1000),
+          issuedAt: new Date(decoded.iat * 1000),
+        });
+        await tokenBlackList.save().catch((dataErr) => console.error(`Delete failure adding to blacklist - ${dataErr}`));
+
+        return res.json({
+          msg: 'User deleted successfully',
+        });
+      } catch (dbErr) {
+        console.error(dbErr);
+        return res.status(500).send('Database error during deletion');
+      }
+    });
+    return null;
+  }
+  return res.status(400).send('Please login first');
+});
 
 module.exports = router;

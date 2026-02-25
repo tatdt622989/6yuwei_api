@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { createServer } = require('http');
 const mongoose = require('mongoose');
@@ -58,6 +59,7 @@ let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://ap
 if (env === 'development') {
   allowedOrigins = ['http://localhost:3000', 'http://localhost:8888', 'http://127.0.0.1:5500', 'http://localhost:3002', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://localhost:5173'];
 }
+
 app.use(
   cors({
     origin: allowedOrigins,

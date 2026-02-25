@@ -15,6 +15,8 @@ const userSchema = new mongoose.Schema({
   balance: { type: Number, default: 30 },
   permissions: { type: String, default: 'general', enum: ['general', 'admin'] },
   favoriteComponents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Component' }],
+  appleId: { type: String },
+  appleRefreshToken: { type: String },
 }, { timestamps: true });
 
 userSchema.plugin(findOrCreate);
