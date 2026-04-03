@@ -3,74 +3,42 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const helmet = require('helmet');
 const guessAICanvasController = require('../controllers/guessai_canvas');
+const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
+const { limitDailyImageUploadsByIp } = require('../middlewares/rateLimit');
 
 const { requireAdmin } = require('../middlewares/auth');
 
 // multer 設定
-const guessAICanvasStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      if (!fs.existsSync(path.join(__dirname, '../uploads/guessai_canvas/img'))) {
-        fs.mkdirSync(path.join(__dirname, '../uploads/guessai_canvas/img'), { recursive: true });
-      }
-      const dest = path.join(__dirname, '../uploads/guessai_canvas/img');
-      cb(null, dest);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
-  filename: (req, file, cb) => {
-    try {
-      const dest = path.join(__dirname, '../uploads/guessai_canvas/img');
-      const ext = path.extname(file.originalname);
-      const basename = Date.now();
-      let i = 0;
-      let filename = `${basename}${ext}`;
-      filename = Buffer.from(filename, 'latin1').toString('utf8');
-      const generateFilename = () => {
-        fs.access(path.join(dest, filename), (err) => {
-          if (err) {
-            cb(null, filename);
-          } else {
-            i += 1;
-            filename = `${basename}_${i}${ext}`;
-            filename = Buffer.from(filename, 'latin1').toString('utf8');
-            generateFilename();
-          }
-        });
-      };
-      generateFilename();
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
+const guessAICanvasStorage = createImageStorage({
+  destination: path.join(__dirname, '../uploads/guessai_canvas/img'),
+  filenamePrefix: 'guessai',
 });
-
-/**
- * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
- * @param req - HTTP 請求對象。
- * @param file - 剛上傳的文件。
- * @param cb - 回調函數。
- */
-const fileFilter = (req, file, cb) => {
-  if (!file.mimetype.startsWith('image')) {
-    console.log('Not an image!');
-    req.fileError = 'Not an image! Please upload an image.';
-    cb(null, false);
-  }
-  cb(null, true);
-};
 
 const upload = multer({
   storage: guessAICanvasStorage,
-  fileFilter,
+  fileFilter: imageFileFilter,
   limits: { fileSize: 1024 * 1024 * 5 }, // 5MB
   encoding: 'utf-8',
+});
+
+const handlePhotoUpload = (req, res, next) => {
+  upload.single('photo')(req, res, (err) => {
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).send('Image must be 5MB or smaller.');
+    }
+
+    if (err) {
+      return res.status(400).send(err.message || 'Upload failed');
+    }
+
+    return next();
+  });
+};
+
+const limitGuessAICanvasUploads = limitDailyImageUploadsByIp({
+  scope: 'guessai_canvas',
 });
 
 router.get('/', (req, res) => {
@@ -78,9 +46,9 @@ router.get('/', (req, res) => {
 });
 
 router.get('/user_photo/:filename/', guessAICanvasController.getUserPhoto);
-router.post('/simple_user/', upload.single('photo'), guessAICanvasController.createSimpleUser);
+router.post('/simple_user/', handlePhotoUpload, limitGuessAICanvasUploads, guessAICanvasController.createSimpleUser);
 router.get('/simple_user/', guessAICanvasController.getSimpleUser);
-router.put('/simple_user/', upload.single('photo'), guessAICanvasController.updateSimpleUser);
+router.put('/simple_user/', handlePhotoUpload, limitGuessAICanvasUploads, guessAICanvasController.updateSimpleUser);
 router.get('/msg_list/', guessAICanvasController.getMsgList);
 router.post('/theme/', guessAICanvasController.createTheme);
 router.get('/canvas/', helmet(

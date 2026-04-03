@@ -31,6 +31,7 @@ console.log = (message) => {
 const dbURL = process.env.DB_URL;
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 const env = process.env.NODE_ENV;
+const port = Number(process.env.PORT) || 3000;
 
 const openai = new OpenAI({
   apiKey: OpenAIAPIKey,
@@ -53,6 +54,10 @@ mongoose
 const app = express();
 const server = createServer(app);
 socketServer(server);
+
+if (env === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // 跨域設定
 let allowedOrigins = ['https://6yuwei.com', 'https://ai.6yuwei.com', 'https://api.6yuwei.com', 'https://www.6yuwei.com', 'https://app.6yuwei.com'];
@@ -161,9 +166,9 @@ app.get('*', (req, res) => {
 });
 
 // port, callback
-server.listen(3001, () => {
+server.listen(port, () => {
   console.log(process.env.DB_URL);
-  console.log('伺服器正在port3001上運行');
+  console.log(`伺服器正在port${port}上運行`);
 });
 
 server.timeout = 1000 * 60 * 5;

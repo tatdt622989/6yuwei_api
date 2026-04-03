@@ -4,4 +4,3 @@ uploads
 output.log
 ecosystem.config.js
 *.zip
-Dockerfile

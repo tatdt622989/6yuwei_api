@@ -22,3 +22,9 @@
 **/values.dev.yaml
 LICENSE
 README.md
+*.zip
+.DS_Store
+archive.zip
+ecosystem.config.js
+output.log
+uploads

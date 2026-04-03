@@ -7,68 +7,21 @@ const path = require('path');
 const fs = require('fs');
 const validator = require('validator');
 const { requireAdmin } = require('../middlewares/auth');
+const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 
 // models
 const Animation = require('../models/animation');
 const Photo = require('../models/photos');
 
 // multer 設定
-const adminStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      const dest = path.join(__dirname, '../uploads/admin/img');
-      cb(null, dest);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
-  filename: (req, file, cb) => {
-    try {
-      const dest = path.join(__dirname, '../uploads/admin/img');
-      const ext = path.extname(file.originalname);
-      const basename = path.basename(file.originalname, ext);
-      let i = 0;
-      let filename = file.originalname;
-      filename = Buffer.from(filename, 'latin1').toString('utf8');
-      const generateFilename = () => {
-        fs.access(path.join(dest, filename), (err) => {
-          if (err) {
-            cb(null, filename);
-          } else {
-            i += 1;
-            filename = `${basename}_${i}${ext}`;
-            filename = Buffer.from(filename, 'latin1').toString('utf8');
-            generateFilename();
-          }
-        });
-      };
-      generateFilename();
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
+const adminStorage = createImageStorage({
+  destination: path.join(__dirname, '../uploads/admin/img'),
+  filenamePrefix: 'admin',
 });
-
-/**
- * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
- * @param req - HTTP 請求對象。
- * @param file - 剛上傳的文件。
- * @param cb - 回調函數。
- */
-const fileFilter = (req, file, cb) => {
-  if (!file.mimetype.startsWith('image')) {
-    console.log('Not an image!');
-    req.fileError = 'Not an image! Please upload an image.';
-    cb(null, false);
-  }
-  cb(null, true);
-};
 
 const upload = multer({
   storage: adminStorage,
-  fileFilter,
+  fileFilter: imageFileFilter,
   limits: { fileSize: 1024 * 1024 * 10 },
   encoding: 'utf-8',
 });

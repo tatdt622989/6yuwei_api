@@ -9,6 +9,7 @@ const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const passport = require('passport');
+const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { OAuth2Client } = require('google-auth-library');
@@ -38,50 +39,18 @@ passport.use(new GoogleStrategy(
 ));
 
 // multer 設定
-const adminStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    try {
-      const { user } = req;
-      const { id } = user;
-      const uploadPath = path.join(__dirname, `../uploads/user/${id}/img/`);
-      // 檢查目錄是否存在，如果不存在則創建目錄
-      if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
-      }
-      cb(null, uploadPath);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
+const adminStorage = createImageStorage({
+  destination: (req) => {
+    const { user } = req;
+    const { id } = user;
+    return path.join(__dirname, `../uploads/user/${id}/img/`);
   },
-  filename: (req, file, cb) => {
-    try {
-      let filename = file.originalname;
-      filename = Buffer.from(filename, 'latin1').toString('utf8');
-      cb(null, filename);
-    } catch (err) {
-      console.error(err);
-      cb(err, null);
-    }
-  },
+  filenamePrefix: (req) => req.user?.id || 'user',
 });
-
-/**
- * 如果文件不是圖片，則返回錯誤。否則，調用回調函數。
- * @param req - HTTP 請求對象。
- * @param file - 剛上傳的文件。
- * @param cb - 回調函數。
- */
-const fileFilter = (req, file, cb) => {
-  if (!file.mimetype.startsWith('image')) {
-    cb(new Error('Not an image! Please upload an image.'), false);
-  }
-  cb(null, true);
-};
 
 const upload = multer({
   storage: adminStorage,
-  fileFilter,
+  fileFilter: imageFileFilter,
   limits: { fileSize: 1024 * 1024 * 5 },
   encoding: 'utf-8',
 });
@@ -587,6 +556,10 @@ router.get('/user/', async (req, res) => {
 
 // 修改用戶資料
 router.put('/user/', upload.single('photo'), async (req, res) => {
+  if (req.fileError) {
+    return res.status(400).send(req.fileError);
+  }
+
   const token = req.cookies.access_token;
   const userPhotoName = req && req.file && req.file.filename;
   const {

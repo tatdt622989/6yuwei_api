@@ -21,6 +21,10 @@ const {
 } = require('../models/guessai_canvas');
 
 const createSimpleUser = async (req, res) => {
+  if (req.fileError) {
+    return res.status(400).send(req.fileError);
+  }
+
   const recaptchaToken = req.body.token;
   const form = new FormData();
   form.append('secret', process.env.RECAPTCHA_SECRET_KEY);
@@ -259,6 +263,10 @@ const getRanking = async (req, res) => {
 };
 
 const updateSimpleUser = async (req, res) => {
+  if (req.fileError) {
+    return res.status(400).send(req.fileError);
+  }
+
   // const { score } = req.body;
   const token = req.cookies.guessai_canvas_access_token;
 
