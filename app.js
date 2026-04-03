@@ -30,6 +30,7 @@ console.log = (message) => {
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
+const dbName = process.env.DB_NAME || '6yuwei';
 const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 const env = process.env.NODE_ENV;
 const port = Number(process.env.PORT) || 3000;
@@ -45,10 +46,38 @@ const mongoReadyStateMap = {
   3: 'disconnecting',
 };
 
+const buildMongoUri = (uri, defaultDbName) => {
+  if (!uri) {
+    return uri;
+  }
+
+  try {
+    const parsedUri = new URL(uri);
+
+    if (!parsedUri.pathname || parsedUri.pathname === '/') {
+      parsedUri.pathname = `/${defaultDbName}`;
+    }
+
+    return parsedUri.toString();
+  } catch (err) {
+    if (uri.includes('/?')) {
+      return uri.replace('/?', `/${defaultDbName}?`);
+    }
+
+    if (uri.endsWith('/')) {
+      return `${uri}${defaultDbName}`;
+    }
+
+    return uri;
+  }
+};
+
+const mongoUri = buildMongoUri(dbURL, dbName);
+
 // 連接資料庫
 mongoose.set('strictQuery', true);
 mongoose
-  .connect(`${dbURL}6yuwei`, {
+  .connect(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -56,7 +85,7 @@ mongoose
     console.log('資料庫連接成功');
   })
   .catch((err) => {
-    console.log('資料庫連接失敗', err);
+    console.log(`資料庫連接失敗: ${err.message}`);
   });
 
 const app = express();
