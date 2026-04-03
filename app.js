@@ -78,6 +78,7 @@ const mongoUri = buildMongoUri(dbURL, dbName);
 mongoose.set('strictQuery', true);
 mongoose
   .connect(mongoUri, {
+    family: 4,
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -219,7 +220,6 @@ app.get('*', (req, res) => {
 
 // port, callback
 server.listen(port, () => {
-  console.log(process.env.DB_URL);
   console.log(`伺服器正在port${port}上運行`);
 });
 
