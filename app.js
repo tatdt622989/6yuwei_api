@@ -58,14 +58,20 @@ const buildMongoUri = (uri, defaultDbName) => {
       parsedUri.pathname = `/${defaultDbName}`;
     }
 
+    if (parsedUri.username && !parsedUri.searchParams.has('authSource')) {
+      parsedUri.searchParams.set('authSource', 'admin');
+    }
+
     return parsedUri.toString();
   } catch (err) {
     if (uri.includes('/?')) {
-      return uri.replace('/?', `/${defaultDbName}?`);
+      const connector = uri.includes('authSource=') ? '' : '&authSource=admin';
+      return uri.replace('/?', `/${defaultDbName}?`) + connector;
     }
 
     if (uri.endsWith('/')) {
-      return `${uri}${defaultDbName}`;
+      const connector = uri.includes('?') ? '&' : '?';
+      return `${uri}${defaultDbName}${connector}authSource=admin`;
     }
 
     return uri;
