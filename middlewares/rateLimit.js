@@ -1,11 +1,10 @@
 const fs = require('fs');
+const { getClientIp } = require('./clientIp');
 
 const DAILY_UPLOAD_LIMIT = 5;
 const RATE_LIMIT_MESSAGE = `You can upload up to ${DAILY_UPLOAD_LIMIT} images per day from the same IP.`;
 
 const uploadCounters = new Map();
-
-const normalizeIp = (ip = '') => (ip.startsWith('::ffff:') ? ip.slice(7) : ip);
 
 const getTaipeiDateKey = (date = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Taipei',
@@ -44,7 +43,7 @@ const limitDailyImageUploadsByIp = ({
   const dateKey = getTaipeiDateKey();
   pruneCounters(dateKey);
 
-  const ip = normalizeIp(req.ip || req.socket?.remoteAddress || 'unknown');
+  const ip = req.clientIp || getClientIp(req);
   const counterKey = `${scope}:${ip}:${dateKey}`;
   const currentCount = uploadCounters.get(counterKey) || 0;
 

@@ -22,6 +22,7 @@ const apiDomain = process.env.API_DOMAIN;
 // models
 const { Component, ComponentType } = require('../models/component');
 const { User, UserTransition } = require('../models/user');
+const { getClientIp } = require('../middlewares/clientIp');
 
 const readCSSFile = async (req, res) => {
   const { filename } = req.params;
@@ -119,7 +120,7 @@ const generateComponent = async (req, res) => {
     userId: req.user._id,
     amount: -1,
     type: 'component generate',
-    ip: req.ip,
+    ip: req.clientIp || getClientIp(req),
   });
   await transaction.save();
 

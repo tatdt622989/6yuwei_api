@@ -18,6 +18,7 @@ const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
 const guessAICanvasRouter = require('./routes/guessai_canvas');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
+const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
 
 const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
 
@@ -63,7 +64,7 @@ const server = createServer(app);
 socketServer(server);
 
 if (env === 'production') {
-  app.set('trust proxy', 1);
+  app.set('trust proxy', true);
 }
 
 // 跨域設定
@@ -88,6 +89,7 @@ app.use(express.static(path.resolve(__dirname, 'public')));
 app.use(express.static(path.resolve(__dirname, 'node_modules')));
 
 app.use(cookieParser());
+app.use(attachClientIp);
 
 // 重定向到安全的路徑
 // app.use((req, res, next) => {
@@ -143,6 +145,8 @@ app.get('/test/', requireAdmin, (req, res) => {
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     dbURL,
     env: process.env.NODE_ENV,
+    requestIp: req.clientIp,
+    proxyIp: normalizeIp(req.socket?.remoteAddress || '') || 'unknown',
     serverTime: `${new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' })}`,
     nodeVersion: process.version,
     memoryUsage: process.memoryUsage(),
