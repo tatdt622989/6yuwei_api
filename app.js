@@ -37,6 +37,13 @@ const openai = new OpenAI({
   apiKey: OpenAIAPIKey,
 });
 
+const mongoReadyStateMap = {
+  0: 'disconnected',
+  1: 'connected',
+  2: 'connecting',
+  3: 'disconnecting',
+};
+
 // 連接資料庫
 mongoose.set('strictQuery', true);
 mongoose
@@ -145,6 +152,18 @@ app.get('/test/', requireAdmin, (req, res) => {
   };
 
   res.json(status);
+});
+
+app.get('/health/', (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  const isHealthy = dbState === 1;
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    db: mongoReadyStateMap[dbState] || 'unknown',
+  });
 });
 
 // 回傳JSON格式

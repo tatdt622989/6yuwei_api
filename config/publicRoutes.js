@@ -1,4 +1,5 @@
 const publicRoutes = [
+  '/health/?',
   '/login/',
   '/app/login/',
   '/signup/',
