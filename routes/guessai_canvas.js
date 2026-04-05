@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const helmet = require('helmet');
 const guessAICanvasController = require('../controllers/guessai_canvas');
+const { guessAICanvasContentSecurityPolicyDirectives } = require('../config/origins');
 const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 const { limitDailyImageUploadsByIp } = require('../middlewares/rateLimit');
 
@@ -54,24 +55,14 @@ router.post('/theme/', guessAICanvasController.createTheme);
 router.get('/canvas/', helmet(
   {
     contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'", 'https://app.6yuwei.com'],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
-        frameAncestors: ["'self'", 'https://app.6yuwei.com'],
-      },
+      directives: guessAICanvasContentSecurityPolicyDirectives,
     },
   },
 ), guessAICanvasController.getCanvas);
 router.get('/canvas/:id/', helmet(
   {
     contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'", 'https://app.6yuwei.com'],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://app.6yuwei.com'],
-        frameAncestors: ["'self'", 'https://app.6yuwei.com'],
-      },
+      directives: guessAICanvasContentSecurityPolicyDirectives,
     },
   },
 ), guessAICanvasController.getGalleryCanvas);
