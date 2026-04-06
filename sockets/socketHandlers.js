@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
-const OpenAI = require('openai');
 const {
-  Messages, SimpleUser, GuessAICanvas, Theme,
+  Messages, SimpleUser, GuessAICanvas,
 } = require('../models/guessai_canvas');
 
 const { generateCanvas } = require('../controllers/guessai_canvas');
@@ -50,7 +49,13 @@ module.exports = (io, socket, accessToken) => {
         isCorrect: false,
       });
 
-      if (guessaiCanvas && !guessaiCanvas.solved) {
+      const hasActiveCanvas = guessaiCanvas && !guessaiCanvas.solved;
+      let isCorrectAnswer = false;
+
+      if (!hasActiveCanvas) {
+        // No active canvas - trigger generation
+        generateCanvas(io);
+      } else {
         // check if message is correct
         const { answerTW, answerEN, answerJP } = guessaiCanvas;
         // if is english, convert to lower case
@@ -59,7 +64,7 @@ module.exports = (io, socket, accessToken) => {
         if (lowercaseMsg === answerTW
           || lowercaseMsg === lowercaseAnswerEN
           || lowercaseMsg === answerJP) {
-          generateCanvas(io); // 答對後重新產生
+          isCorrectAnswer = true;
 
           // set message to db
           message.isCorrect = true;
@@ -69,10 +74,12 @@ module.exports = (io, socket, accessToken) => {
           user.score += 100;
           await user.save();
 
-          // set canvas to db
+          // set canvas to db (must be saved before generateCanvas checks solved: false)
           guessaiCanvas.solved = true;
           guessaiCanvas.correctRespondent = decoded.userId;
           await guessaiCanvas.save();
+
+          generateCanvas(io); // 答對後重新產生
 
           // emit canvas to all clients
           io.emit('server canvas', {
@@ -98,24 +105,26 @@ module.exports = (io, socket, accessToken) => {
 
       await message.save();
 
-      const canvasTime = guessaiCanvas.createdAt.getTime();
-      const nowTime = Date.now();
-      const differenceInMillis = nowTime - canvasTime;
-      const differenceInMinutes = Math.floor(differenceInMillis / (1000 * 60));
+      if (hasActiveCanvas && !isCorrectAnswer) {
+        const canvasTime = guessaiCanvas.createdAt.getTime();
+        const nowTime = Date.now();
+        const differenceInMillis = nowTime - canvasTime;
+        const differenceInMinutes = Math.floor(differenceInMillis / (1000 * 60));
 
-      // get attempt data
-      const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
-        .sort({ createdAt: -1 });
-      const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
-      if (!hasCorrect && differenceInMinutes > 4 && attemptData.length > 5) {
-        // emit canvas to all clients
-        io.emit('server canvas', {
-          status: 'info',
-          message: 'The theme has been changed.',
-        });
-        guessaiCanvas.solved = true;
-        await guessaiCanvas.save();
-        generateCanvas(io); // 沒人答對並達到限制後重新產生
+        // get attempt data
+        const attemptData = await Messages.find({ createdAt: { $gte: guessaiCanvas.createdAt } })
+          .sort({ createdAt: -1 });
+        const hasCorrect = attemptData.some((attempt) => attempt.isCorrect); // 是否有人答對
+        if (!hasCorrect && differenceInMinutes > 4 && attemptData.length > 5) {
+          // emit canvas to all clients
+          io.emit('server canvas', {
+            status: 'info',
+            message: 'The theme has been changed.',
+          });
+          guessaiCanvas.solved = true;
+          await guessaiCanvas.save();
+          generateCanvas(io); // 沒人答對並達到限制後重新產生
+        }
       }
 
       // emit message to all clients

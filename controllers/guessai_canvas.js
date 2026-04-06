@@ -1,17 +1,11 @@
 /* eslint-disable no-underscore-dangle */
 const jwt = require('jsonwebtoken');
-const OpenAI = require('openai');
+const { GoogleGenAI, FunctionCallingConfigMode } = require('@google/genai');
 const path = require('path');
 const fs = require('fs');
 const xss = require('xss');
 
-const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
-const openai = new OpenAI({
-  apiKey: OpenAIAPIKey,
-});
-
-const { setSocketState, getSocketState } = require('../sockets/socketState');
-const state = getSocketState();
+const geminiAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const apiDomain = process.env.API_DOMAIN;
 
@@ -19,6 +13,23 @@ const apiDomain = process.env.API_DOMAIN;
 const {
   GuessAICanvas, SimpleUser, Messages, Theme,
 } = require('../models/guessai_canvas');
+
+const buildCanvasGenerationResult = (ok, status, error = null) => ({
+  ok,
+  status,
+  error,
+});
+
+const buildCanvasGenerationError = (io, status, error) => {
+  if (io) {
+    io.emit('server canvas', {
+      status: 'error',
+      message: error,
+    });
+  }
+
+  return buildCanvasGenerationResult(false, status, error);
+};
 
 const createSimpleUser = async (req, res) => {
   if (req.fileError) {
@@ -354,199 +365,217 @@ const getCanvasList = async (req, res) => {
 };
 
 const generateCanvas = async (io) => {
-  console.log('generate canvas');
-  if (state.isCanvasGenerating) {
-    return;
-  }
-  setSocketState('isCanvasGenerating', true);
-  let content = null;
-
-  // get theme from db
-  const themeCount = await Theme.countDocuments();
-  const random = Math.floor(Math.random() * themeCount);
-  const theme = await Theme.findOne().skip(random);
-
-  // generate canvas
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'As an HTML canvas expert and a code artist specializing in theme-based creations, with a keen emphasis on both the aesthetic intricacies and the security of the generated code, I strive to bring forth a unique fusion of technology and artistry.',
-        },
-        {
-          role: 'user',
-          content: `
-          Create HTML canvas code with '${theme.themeEN}' as the theme, and return it in JSON format within the constraint of 5000 characters.
+    // DB-level check works across cluster processes
+    const existingUnsolved = await GuessAICanvas.findOne({ solved: false });
+    if (existingUnsolved) {
+      return buildCanvasGenerationResult(false, 409, 'Canvas generation is already in progress');
+    }
+
+    // get theme from db
+    const themeCount = await Theme.countDocuments();
+    if (!themeCount) {
+      return buildCanvasGenerationError(io, 500, 'No canvas theme available');
+    }
+
+    const random = Math.floor(Math.random() * themeCount);
+    const theme = await Theme.findOne().skip(random);
+    if (!theme) {
+      return buildCanvasGenerationError(io, 500, 'Canvas theme not found');
+    }
+
+    // Try Gemini API up to 2 times; on failure don't write to DB
+    // so the next user message will retrigger generation
+    let content = null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const response = await geminiAI.models.generateContent({
+          model: 'gemini-3.1-flash-lite-preview',
+          contents: [
+            {
+              role: 'user',
+              parts: [{
+                text: `Create HTML canvas code with '${theme.themeEN}' as the theme, within the constraint of 5000 characters.
           Emphasize the need for the drawing to be as intricate and lifelike as possible.
-          Do not omit and include any image URLs, or JavaScript comments in the code.`,
-        },
-      ],
-      temperature: 1,
-      tools: [
-        {
-          type: 'function',
-          function: {
-            name: 'canvasDraw',
-            description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any JavaScript comments in the code.',
-            parameters: {
-              type: 'object',
-              properties: {
-                code: {
-                  type: 'string',
-                  description: 'HTML code that must and only include the <script> and <canvas> tags.',
+          Do not include any image URLs, or JavaScript comments in the code.`,
+              }],
+            },
+          ],
+          config: {
+            systemInstruction: 'As an HTML canvas expert and a code artist specializing in theme-based creations, with a keen emphasis on both the aesthetic intricacies and the security of the generated code, I strive to bring forth a unique fusion of technology and artistry.',
+            tools: [{
+              functionDeclarations: [{
+                name: 'canvasDraw',
+                description: 'Generate a canvas image with a 16:9 aspect ratio using only the <script> and <canvas> tags in HTML. Do not include any JavaScript comments in the code.',
+                parametersJsonSchema: {
+                  type: 'object',
+                  properties: {
+                    code: {
+                      type: 'string',
+                      description: 'HTML code that must and only include the <script> and <canvas> tags.',
+                    },
+                  },
+                  required: ['code'],
                 },
+              }],
+            }],
+            toolConfig: {
+              functionCallingConfig: {
+                mode: FunctionCallingConfigMode.ANY,
+                allowedFunctionNames: ['canvasDraw'],
               },
-              required: ['code'],
             },
           },
-        },
-      ],
-      tool_choice: { type: 'function', function: { name: 'canvasDraw' } },
-    });
+        });
 
-    content = response.choices[0]?.message?.tool_calls[0]?.function.arguments;
-    console.log(content);
-    if (!content
-      || !content.code) {
-        setSocketState('isCanvasGenerating', false);
-      // retry
-      // generateCanvas();
+        const functionCall = response.functionCalls?.[0];
+        if (functionCall?.name === 'canvasDraw' && functionCall.args?.code && typeof functionCall.args.code === 'string') {
+          content = functionCall.args;
+          break;
+        }
+      } catch (err) {
+        // retry on next iteration
+      }
     }
-    content = JSON.parse(content);
-  } catch (err) {
-    console.log(err);
-    setSocketState('isCanvasGenerating', false);
-    // retry
-    // generateCanvas();
-  }
 
-  // If the code contains an answer, remove it as a random English word.
-  // If a reserved word does not replace
-  const reservedWords = [
-    'abstract',
-    'arguments',
-    'await',
-    'boolean',
-    'break',
-    'byte',
-    'case',
-    'catch',
-    'char',
-    'class',
-    'const',
-    'continue',
-    'debugger',
-    'default',
-    'delete',
-    'do',
-    'double',
-    'else',
-    'enum',
-    'eval',
-    'export',
-    'extends',
-    'false',
-    'final',
-    'finally',
-    'float',
-    'for',
-    'function',
-    'goto',
-    'if',
-    'implements',
-    'import',
-    'in',
-    'instanceof',
-    'int',
-    'interface',
-    'let',
-    'long',
-    'native',
-    'new',
-    'null',
-    'package',
-    'private',
-    'protected',
-    'public',
-    'return',
-    'short',
-    'static',
-    'super',
-    'switch',
-    'synchronized',
-    'this',
-    'throw',
-    'throws',
-    'transient',
-    'true',
-    'try',
-    'typeof',
-    'var',
-    'void',
-    'volatile',
-    'while',
-    'with',
-    'yield',
-    'Math',
-    'Array',
-    'Date',
-  ];
-  if (!reservedWords.includes(theme.themeEN.toLowerCase())) {
-    const atoz = 'abcdefghijklmnopqrstuvwxyz';
-    const wordLength = 5;
-    let randomEN = '';
-    for (let i = 0; i < wordLength; i += 1) {
-      randomEN += atoz[Math.floor(Math.random() * atoz.length)];
+    // Both attempts failed - return silently without writing to DB
+    // Next user message will detect no active canvas and retrigger generation
+    if (!content) {
+      return buildCanvasGenerationResult(false, 502, 'Failed to generate canvas');
     }
-    const answers = [
-      theme.themeEN, // original
-      theme.themeEN.toLowerCase(), // lowercase
-      theme.themeEN.toLowerCase().charAt(0).toUpperCase()
-       + theme.themeEN.toLowerCase().slice(1), // capitalize first letter
-      theme.themeEN.toUpperCase(), // capitalize all letters
-      theme.themeEN.toLowerCase().replace(' ', '-'), // dash
-      theme.themeEN.toLowerCase().replace(' ', '_'), // underscore
-      theme.themeEN.toLowerCase().replace(' ', ''), // remove space
-      theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase() + theme.themeEN.toLowerCase().replace(' ', '').slice(1), // remove space and capitalize first letter
+
+    // If the code contains an answer, remove it as a random English word.
+    // If a reserved word does not replace
+    const reservedWords = [
+      'abstract',
+      'arguments',
+      'await',
+      'boolean',
+      'break',
+      'byte',
+      'case',
+      'catch',
+      'char',
+      'class',
+      'const',
+      'continue',
+      'debugger',
+      'default',
+      'delete',
+      'do',
+      'double',
+      'else',
+      'enum',
+      'eval',
+      'export',
+      'extends',
+      'false',
+      'final',
+      'finally',
+      'float',
+      'for',
+      'function',
+      'goto',
+      'if',
+      'implements',
+      'import',
+      'in',
+      'instanceof',
+      'int',
+      'interface',
+      'let',
+      'long',
+      'native',
+      'new',
+      'null',
+      'package',
+      'private',
+      'protected',
+      'public',
+      'return',
+      'short',
+      'static',
+      'super',
+      'switch',
+      'synchronized',
+      'this',
+      'throw',
+      'throws',
+      'transient',
+      'true',
+      'try',
+      'typeof',
+      'var',
+      'void',
+      'volatile',
+      'while',
+      'with',
+      'yield',
+      'Math',
+      'Array',
+      'Date',
     ];
-    for (let i = 0; i < answers.length; i += 1) {
-      content.code = content.code.replace(new RegExp(answers[i], 'g'), randomEN);
+    if (!reservedWords.includes(theme.themeEN.toLowerCase())) {
+      const atoz = 'abcdefghijklmnopqrstuvwxyz';
+      const wordLength = 5;
+      let randomEN = '';
+      for (let i = 0; i < wordLength; i += 1) {
+        randomEN += atoz[Math.floor(Math.random() * atoz.length)];
+      }
+      const answers = [
+        theme.themeEN, // original
+        theme.themeEN.toLowerCase(), // lowercase
+        theme.themeEN.toLowerCase().charAt(0).toUpperCase()
+         + theme.themeEN.toLowerCase().slice(1), // capitalize first letter
+        theme.themeEN.toUpperCase(), // capitalize all letters
+        theme.themeEN.toLowerCase().replace(' ', '-'), // dash
+        theme.themeEN.toLowerCase().replace(' ', '_'), // underscore
+        theme.themeEN.toLowerCase().replace(' ', ''), // remove space
+        theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase() + theme.themeEN.toLowerCase().replace(' ', '').slice(1), // remove space and capitalize first letter
+      ];
+      for (let i = 0; i < answers.length; i += 1) {
+        content.code = content.code.replace(new RegExp(answers[i], 'g'), randomEN);
+      }
     }
-  }
 
-  // save canvas to db
-  const {
-    code,
-  } = content;
+    try {
+      const guessaiCanvas = new GuessAICanvas({
+        canvas: content.code,
+        answerTW: theme.themeTW,
+        answerEN: theme.themeEN,
+        answerJP: theme.themeJP,
+        solved: false,
+      });
+      await guessaiCanvas.save();
+    } catch (err) {
+      return buildCanvasGenerationError(io, 500, 'Failed to save generated canvas');
+    }
 
-  try {
-    const guessaiCanvas = new GuessAICanvas({
-      canvas: code,
-      answerTW: theme.themeTW,
-      answerEN: theme.themeEN,
-      answerJP: theme.themeJP,
-      solved: false,
-    });
-    await guessaiCanvas.save();
+    if (io) {
+      // emit canvas to all clients
+      io.emit('server canvas', {
+        status: 'done',
+      });
+    }
+
+    console.log('generate canvas done');
+    return buildCanvasGenerationResult(true, 200);
   } catch (err) {
-    console.log(err);
+    console.error('generateCanvas unexpected error:', err);
+    return buildCanvasGenerationResult(false, 500, 'Unexpected error');
   }
-
-  if (io) {
-    // emit canvas to all clients
-    io.emit('server canvas', {
-      status: 'done',
-    });
-  }
-  
-  console.log('generate canvas done');
-  setSocketState('isCanvasGenerating', false);
 };
 
 const forceGenerateCanvas = async (req, res) => {
-  await generateCanvas();
+  const result = await generateCanvas();
+  if (!result.ok) {
+    return res.status(result.status).send({
+      status: 'error',
+      message: result.error,
+    });
+  }
+
   return res.status(200).send({ status: 'done' });
 };
 
