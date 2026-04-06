@@ -365,22 +365,26 @@ const getCanvasList = async (req, res) => {
 };
 
 const generateCanvas = async (io) => {
+  console.log('generate canvas start');
   try {
     // DB-level check works across cluster processes
     const existingUnsolved = await GuessAICanvas.findOne({ solved: false });
     if (existingUnsolved) {
+      console.log('Canvas generation skipped: existing unsolved canvas found');
       return buildCanvasGenerationResult(false, 409, 'Canvas generation is already in progress');
     }
 
     // get theme from db
     const themeCount = await Theme.countDocuments();
     if (!themeCount) {
+      console.log('No canvas theme available');
       return buildCanvasGenerationError(io, 500, 'No canvas theme available');
     }
 
     const random = Math.floor(Math.random() * themeCount);
     const theme = await Theme.findOne().skip(random);
     if (!theme) {
+      console.log('Canvas theme not found');
       return buildCanvasGenerationError(io, 500, 'Canvas theme not found');
     }
 
@@ -389,6 +393,7 @@ const generateCanvas = async (io) => {
     let content = null;
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
+        console.log(`Attempt ${attempt + 1} to generate canvas with theme: ${theme.themeEN}`);
         // eslint-disable-next-line no-await-in-loop
         const response = await geminiAI.models.generateContent({
           model: 'gemini-3.1-flash-lite-preview',
