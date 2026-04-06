@@ -367,9 +367,9 @@ const getCanvasList = async (req, res) => {
 const generateCanvas = async (io) => {
   console.log('generate canvas start');
   try {
-    // DB-level check works across cluster processes
-    const existingUnsolved = await GuessAICanvas.findOne({ solved: false });
-    if (existingUnsolved) {
+    // Check if the latest canvas is still unsolved
+    const latestCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 });
+    if (latestCanvas && !latestCanvas.solved) {
       console.log('Canvas generation skipped: existing unsolved canvas found');
       return buildCanvasGenerationResult(false, 409, 'Canvas generation is already in progress');
     }
