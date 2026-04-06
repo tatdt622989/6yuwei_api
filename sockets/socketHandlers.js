@@ -118,8 +118,13 @@ module.exports = (io, socket, accessToken) => {
         if (!hasCorrect && differenceInMinutes > 4 && attemptData.length > 5) {
           // emit canvas to all clients
           io.emit('server canvas', {
-            status: 'info',
-            message: 'The theme has been changed.',
+            status: 'loading',
+            prevAnswer: {
+              answerTW: guessaiCanvas.answerTW,
+              answerEN: guessaiCanvas.answerEN,
+              answerJP: guessaiCanvas.answerJP,
+            },
+            correctRespondent: null,
           });
           guessaiCanvas.solved = true;
           await guessaiCanvas.save();

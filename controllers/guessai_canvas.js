@@ -364,7 +364,14 @@ const getCanvasList = async (req, res) => {
   });
 };
 
+let isGenerating = false;
+
 const generateCanvas = async (io) => {
+  if (isGenerating) {
+    console.log('Canvas generation skipped: generation already in progress');
+    return buildCanvasGenerationResult(false, 409, 'Canvas generation is already in progress');
+  }
+  isGenerating = true;
   console.log('generate canvas start');
   try {
     // Check if the latest canvas is still unsolved
@@ -569,6 +576,8 @@ const generateCanvas = async (io) => {
   } catch (err) {
     console.error('generateCanvas unexpected error:', err);
     return buildCanvasGenerationResult(false, 500, 'Unexpected error');
+  } finally {
+    isGenerating = false;
   }
 };
 
