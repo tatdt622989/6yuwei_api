@@ -179,7 +179,9 @@ router.get('/google/callback/', passport.authenticate('google', { session: false
     sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
   });
 
-  res.redirect(`${process.env.FRONTEND_DOMAIN}admin/account/`);
+  // 用 JS redirect 而非 HTTP 302，確保 Set-Cookie 能穿透 Nuxt proxy
+  const redirectUrl = `${process.env.FRONTEND_DOMAIN}admin/account/`;
+  res.send(`<html><body><script>window.location.href='${redirectUrl}'</script></body></html>`);
 });
 
 // App 專用 CORS 設定
