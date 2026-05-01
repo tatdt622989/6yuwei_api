@@ -3,7 +3,7 @@ const ReisuiCode = require('../models/reisuiCode');
 
 const router = express.Router();
 
-const PLUGIN_ACCESS_TOKEN = '9WRdPWsaF3GSyL29ynPgsS5kJfaTPLdPK77wngGuPYmZVSDLfu';
+const PLUGIN_ACCESS_TOKEN = process.env.REISUI_PLUGIN_TOKEN || '';
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 60 * 60 * 1000;
 const SERIAL_FIELDS = (process.env.REISUI_CODE_FIELDS || 'serial,code,serialNumber,number')
@@ -71,7 +71,7 @@ const registerFailedLookupAttempt = (attemptKey) => {
   const nextFailures = (state?.failures || 0) + 1;
   const nextState = {
     failures: nextFailures,
-      lockedUntil: nextFailures >= MAX_FAILED_ATTEMPTS ? now + LOCK_DURATION_MS : null,
+    lockedUntil: nextFailures >= MAX_FAILED_ATTEMPTS ? now + LOCK_DURATION_MS : null,
   };
 
   failedAttemptsByPlayer.set(attemptKey, nextState);
@@ -79,6 +79,11 @@ const registerFailedLookupAttempt = (attemptKey) => {
 };
 
 const requirePluginToken = (req, res, next) => {
+  if (!PLUGIN_ACCESS_TOKEN) {
+    console.log('reisui plugin token is not configured');
+    return res.status(503).json({ result: 'failed' });
+  }
+
   const token = req.get('X-Reisui-Token');
   if (token !== PLUGIN_ACCESS_TOKEN) {
     return res.status(403).json({ result: 'forbidden' });
