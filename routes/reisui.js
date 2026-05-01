@@ -133,7 +133,10 @@ router.post('/use/', ensureLookupAllowed, async (req, res) => {
 
     if (updatedCode) {
       resetLookupAttempt(req.clientIp || 'unknown');
-      return res.json({ result: 'success' });
+      return res.json({
+        result: 'success',
+        ...updatedCode,
+      });
     }
 
     const existingCode = await ReisuiCode.findOne(filter).select('used').lean();
