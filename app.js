@@ -17,6 +17,7 @@ const contactRouter = require('./routes/contact');
 const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
 const guessAICanvasRouter = require('./routes/guessai_canvas');
+const reisuiRouter = require('./routes/reisui');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
@@ -149,6 +150,7 @@ app.use('/contact/', contactRouter);
 app.use('/components/', componentsRouter);
 app.use('/members/', memberRouter);
 app.use('/guessai_canvas/', guessAICanvasRouter);
+app.use('/reisui/codes/', reisuiRouter);
 
 // other routes..
 app.get('/', (req, res) => {

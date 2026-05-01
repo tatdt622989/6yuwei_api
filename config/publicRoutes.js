@@ -44,6 +44,8 @@ const publicRoutes = [
   '/guessai_canvas/canvas_list/',
   '/guessai_canvas/ranking/',
   '/guessai_canvas/user_photo/[^./]+.(jpg|jpeg|png|gif|webp)/',
+  '/reisui/codes/?',
+  '/reisui/codes/use/?',
 ];
 
 module.exports = publicRoutes;
