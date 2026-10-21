@@ -1,4 +1,4 @@
-FROM node:18-slim AS deps
+FROM node:24.22.1-bookworm-slim AS deps
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev --no-audit --no-fund
 
-FROM node:18-slim AS runner
+FROM node:24.22.1-bookworm-slim AS runner
 
 ENV NODE_ENV=production
 ENV PORT=3000
