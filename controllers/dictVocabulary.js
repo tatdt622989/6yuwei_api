@@ -1,4 +1,4 @@
-const { DictWord } = require('../models/dictWord');
+const { DictWordReader: DictWord } = require('../models/dictWord');
 const { PracticeRecord, VocabularyStat } = require('../models/dictPractice');
 const {
   FORM_ID_SEPARATOR,

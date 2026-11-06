@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
+const { editorDb, readerDb } = require('./dictConnections');
 
-const dictDbName = process.env.DICT_DB_NAME || 'japanese_learning_app';
-const dictDb = mongoose.connection.useDb(dictDbName, { useCache: true });
-
-// services/dictWords.js and the collection validator hold the field rules
-const dictWordSchema = new mongoose.Schema({ _id: String }, { collection: 'dict_words', strict: false, versionKey: false });
+// services/dictWords.js and the collection validator hold the field rules.
+// The limited database accounts cannot create collections, so autoCreate stays off
+const dictWordSchema = () => new mongoose.Schema({ _id: String }, {
+  collection: 'dict_words', strict: false, versionKey: false, autoCreate: false,
+});
 
 const dictWordHistorySchema = new mongoose.Schema({
   wordId: { type: String, required: true },
@@ -14,10 +15,12 @@ const dictWordHistorySchema = new mongoose.Schema({
   at: { type: Date, default: Date.now },
   before: mongoose.Schema.Types.Mixed,
   after: mongoose.Schema.Types.Mixed,
-}, { collection: 'dict_words_history', versionKey: false });
+}, { collection: 'dict_words_history', versionKey: false, autoCreate: false });
 dictWordHistorySchema.index({ wordId: 1, at: -1 });
 
-const DictWord = dictDb.models.DictWord || dictDb.model('DictWord', dictWordSchema);
-const DictWordHistory = dictDb.models.DictWordHistory || dictDb.model('DictWordHistory', dictWordHistorySchema);
+const DictWord = editorDb.models.DictWord || editorDb.model('DictWord', dictWordSchema());
+const DictWordHistory = editorDb.models.DictWordHistory || editorDb.model('DictWordHistory', dictWordHistorySchema);
+// Public routes read through this model, on the account that cannot change words
+const DictWordReader = readerDb.models.DictWordReader || readerDb.model('DictWordReader', dictWordSchema());
 
-module.exports = { DictWord, DictWordHistory };
+module.exports = { DictWord, DictWordHistory, DictWordReader };

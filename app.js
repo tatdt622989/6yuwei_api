@@ -126,7 +126,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static(path.resolve(__dirname, 'public')));
-app.use(express.static(path.resolve(__dirname, 'node_modules')));
 
 app.use(cookieParser());
 app.use(attachClientIp);
@@ -167,7 +166,6 @@ app.get('/', (req, res) => {
 app.get('/test/', requireAdmin, (req, res) => {
   const status = {
     db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    dbURL,
     env: process.env.NODE_ENV,
     requestIp: req.clientIp,
     proxyIp: normalizeIp(req.socket?.remoteAddress || '') || 'unknown',

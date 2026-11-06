@@ -13,9 +13,10 @@
 | 名稱 | 預設值 | 說明 |
 |---|---|---|
 | `DICT_DB_NAME` | `japanese_learning_app` | `dict_words` 所在的資料庫 |
-| `PRACTICE_DB_NAME` | `japanese_learning_app` | App 練習紀錄 `practice_records`、`vocabulary_stats` 所在的資料庫 |
+| `DICT_EDITOR_DB_URL` | 用 `DB_URL` | 編輯路由的連線，帳號 `dict_editor` 只能改 `dict_words` 和 `dict_words_history` |
+| `DICT_READER_DB_URL` | 用 `DB_URL` | App 路由的連線，帳號 `dict_reader` 只能讀 `dict_words`，並寫入 `practice_records`、`vocabulary_stats` |
 
-`DB_URL` 的帳號要能讀寫這個資料庫的 `dict_words` 與 `dict_words_history`。瀏覽器管理介面的網域要加進 `config/origins.js`。
+連線字串的格式是 `mongodb://帳號:密碼@主機:27017/japanese_learning_app?authSource=japanese_learning_app`。沒有設定專用連線時，`DB_URL` 的帳號要有這些權限。瀏覽器管理介面的網域要加進 `config/origins.js`。
 
 ## 路由
 
