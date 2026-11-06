@@ -3,7 +3,6 @@ const express = require('express');
 const { createServer } = require('http');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-const OpenAI = require('openai');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
@@ -18,6 +17,8 @@ const componentsRouter = require('./routes/components');
 const memberRouter = require('./routes/members');
 const guessAICanvasRouter = require('./routes/guessai_canvas');
 const reisuiRouter = require('./routes/reisui');
+const dictWordsRouter = require('./routes/dictWords');
+const dictVocabularyRouter = require('./routes/dictVocabulary');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
@@ -33,13 +34,8 @@ console.log = (message) => {
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
 const dbName = process.env.DB_NAME || '6yuwei';
-const OpenAIAPIKey = process.env.OPENAI_API_KEY;
 const env = process.env.NODE_ENV;
 const port = Number(process.env.PORT) || 3000;
-
-const openai = new OpenAI({
-  apiKey: OpenAIAPIKey,
-});
 
 const mongoReadyStateMap = {
   0: 'disconnected',
@@ -105,6 +101,15 @@ if (env === 'production') {
   app.set('trust proxy', true);
 }
 
+// App 的公開單字路由，放在全域 CORS 和登入驗證之前：App 沒有登入，也不帶 cookie
+app.use(
+  '/dict/vocabulary/',
+  cors({ methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }),
+  express.json(),
+  attachClientIp,
+  dictVocabularyRouter,
+);
+
 // 跨域設定
 const allowedOrigins = getAllowedOrigins(env);
 
@@ -151,28 +156,11 @@ app.use('/components/', componentsRouter);
 app.use('/members/', memberRouter);
 app.use('/guessai_canvas/', guessAICanvasRouter);
 app.use('/reisui/codes/', reisuiRouter);
+app.use('/dict/admin/words/', dictWordsRouter);
 
 // other routes..
 app.get('/', (req, res) => {
   res.send('ホームページへようこそ');
-});
-
-app.get('/chat/', async (req, res) => {
-  const { prompt, systemPrompt } = req.query;
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt },
-      ],
-    });
-    const { content } = response.choices[0].message;
-    res.json(content);
-  } catch (err) {
-    console.log(err);
-    res.status(500).send('error');
-  }
 });
 
 // api test
@@ -221,7 +209,7 @@ app.get('/health/', (req, res) => {
 
 // 404
 app.get('*', (req, res) => {
-  res.send('404 - お探しのページは見つかりませんでした');
+  res.status(404).send('404 - お探しのページは見つかりませんでした');
 });
 
 // port, callback

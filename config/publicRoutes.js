@@ -6,7 +6,6 @@ const publicRoutes = [
   '/logout/',
   '/loginStatus/',
   '/app/logout/',
-  '/chat/',
   '/websites/[0-9a-fA-F]{24}/',
   '/websites/',
   '/3dcgs/',

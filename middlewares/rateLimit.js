@@ -56,8 +56,33 @@ const limitDailyImageUploadsByIp = ({
   return next();
 };
 
+const requestWindows = new Map();
+
+/** Fixed-window limit per IP, kept in memory. It resets when the process restarts. */
+const limitRequestsByIp = ({ scope, maxRequests, windowMs }) => (req, res, next) => {
+  const now = Date.now();
+  if (requestWindows.size > 10000) {
+    requestWindows.forEach((entry, key) => {
+      if (entry.resetAt <= now) requestWindows.delete(key);
+    });
+  }
+
+  const key = `${scope}:${req.clientIp || getClientIp(req)}`;
+  const entry = requestWindows.get(key);
+  if (!entry || entry.resetAt <= now) {
+    requestWindows.set(key, { count: 1, resetAt: now + windowMs });
+    return next();
+  }
+  if (entry.count >= maxRequests) {
+    return res.status(429).json({ error: 'too many requests' });
+  }
+  entry.count += 1;
+  return next();
+};
+
 module.exports = {
   DAILY_UPLOAD_LIMIT,
   RATE_LIMIT_MESSAGE,
   limitDailyImageUploadsByIp,
+  limitRequestsByIp,
 };
