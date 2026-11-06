@@ -9,6 +9,7 @@ const router = express.Router();
 router.use(limitRequestsByIp({ scope: 'dict-vocabulary', maxRequests: 120, windowMs: 60 * 1000 }));
 
 router.get('/stats', dictVocabulary.stats);
+router.get('/words', dictVocabulary.words);
 router.get('/questions', dictVocabulary.questions);
 router.post('/check', dictVocabulary.check);
 router.post('/record', dictVocabulary.record);

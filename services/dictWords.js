@@ -143,7 +143,7 @@ function buildWord(input, id, existing) {
     romaji,
     levels: enumList(body.levels, LEVELS, 'levels', errors, { min: 1 }),
     pos: enumList(body.pos, POS, 'pos', errors, { min: 1 }),
-    posRaw: existing?.posRaw ?? [],
+    posRaw: body.posRaw === undefined ? existing?.posRaw ?? [] : textList(body.posRaw, 'posRaw', errors),
     verbClass,
     categories: textList(body.categories ?? [], 'categories', errors),
     meanings: textList(body.meanings, 'meanings', errors, { min: 1 }),

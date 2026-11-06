@@ -14,6 +14,7 @@
 |---|---|---|
 | `DICT_DB_NAME` | `japanese_learning_app` | `dict_words` 所在的資料庫 |
 | `DICT_EDITOR_DB_URL` | 用 `DB_URL` | 編輯路由的連線，帳號 `dict_editor` 只能改 `dict_words` 和 `dict_words_history` |
+| `GOOGLE_DESKTOP_CLIENT_ID` | 無 | Nihongo Studio 的 Google 登入（`POST /app/googleLogin/`，`platform: "desktop"`）。沒有設定時回 503 |
 | `DICT_READER_DB_URL` | 用 `DB_URL` | App 路由的連線，帳號 `dict_reader` 只能讀 `dict_words`，並寫入 `practice_records`、`vocabulary_stats` |
 
 連線字串的格式是 `mongodb://帳號:密碼@主機:27017/japanese_learning_app?authSource=japanese_learning_app`。沒有設定專用連線時，`DB_URL` 的帳號要有這些權限。瀏覽器管理介面的網域要加進 `config/origins.js`。
@@ -31,7 +32,7 @@
 
 ## 編輯規則
 
-- 可編輯：`readings`、`romaji`、`levels`、`pos`、`verbClass`、`categories`、`meanings`、`related`、`suruVerb`、`suruNoun`、`examples`、`forms`。
+- 可編輯：`readings`、`romaji`、`levels`、`pos`、`posRaw`、`verbClass`、`categories`、`meanings`、`related`、`suruVerb`、`suruNoun`、`examples`、`forms`。
 - `quality.flags` 只能移除 `verb-class-conflict`、`verb-without-forms`、`form-suspect`、`kana-corrected`，不能新增。
 - 其他欄位由伺服器計算或保留，送來也會被忽略：`level`、`levelRank`、`searchKeys`、`allLegacyIds`、`exampleCount`、`formCount`、`legacyIds`。
 - `forms[].legacyIds` 只能用這個單字原本擁有的舊 ID。
@@ -47,6 +48,7 @@ Nihongo Tango 沒有登入，用匿名 ID 記錄練習，所以這組路由是�
 | 方法與路徑 | 用途 |
 |---|---|
 | `GET /dict/vocabulary/stats` | 各等級題數。`totalWords` 是單字加變化形，不重複計算 |
+| `GET /dict/vocabulary/words` | 全部單字與變化形，給離線副本使用，約 9 MB |
 | `GET /dict/vocabulary/questions?level=&questionCount=` | 隨機抽題，`questionCount` 上限 200 |
 | `POST /dict/vocabulary/check` | 內容是 `wordId`、`userAnswer`，回傳對錯與讀音、例句 |
 | `POST /dict/vocabulary/record` | 內容是 `userId`、`wordId`、`isCorrect`、`userAnswer`、`level`，寫入練習紀錄 |
@@ -55,6 +57,16 @@ Nihongo Tango 沒有登入，用匿名 ID 記錄練習，所以這組路由是�
 - `wordId` 的單字是拼法，變化形是 `拼法|寫法|假名`。
 - 舊版資料的 `n5_036` 這類 ID 仍可查詢。寫入紀錄時會換成新 ID。一個舊 ID 對到多個單字時，用答案判斷是哪一個。
 - 題庫包含變化形，等級判斷用單字的 `levels` 和變化形的 `level`。
+
+## Mac app 存檔
+
+每個帳號一份存檔，放在 `6yuwei` 資料庫的 `studio_saves`，由 `DB_URL` 的連線存取。刪除帳號時會一起刪除。
+
+| 方法與路徑 | 用途 |
+|---|---|
+| `GET /studio/save/` | 讀取自己的存檔。沒有存檔時 `revision` 是 0 |
+| `PUT /studio/save/` | 內容是 `revision`、`data`，上限 5 MB。別的裝置已先更新時回 409 和 `currentRevision` |
+| `DELETE /studio/save/` | 刪除自己的存檔 |
 
 ## 其他專案讀取
 

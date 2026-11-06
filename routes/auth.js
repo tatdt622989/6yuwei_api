@@ -19,6 +19,7 @@ const { requireUser } = require('../middlewares/auth');
 // models
 const { User } = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
+const StudioSave = require('../models/studioSave');
 
 passport.use(new GoogleStrategy(
   {
@@ -247,15 +248,26 @@ router.post('/app/login/', async (req, res) => {
   return res.status(400).send('User does not exist');
 });
 
+function googleClientIdOf(platform) {
+  if (platform === 'android') return process.env.GOOGLE_ANDROID_CLIENT_ID;
+  if (platform === 'desktop') return process.env.GOOGLE_DESKTOP_CLIENT_ID;
+  return process.env.GOOGLE_IOS_CLIENT_ID;
+}
+
 // App Google 登入
 router.post('/app/googleLogin/', async (req, res) => {
   const { idToken, platform } = req.body;
   // 根據 platform 來決定使用不同的 client ID
-  const clientId = platform === 'android' ? process.env.GOOGLE_ANDROID_CLIENT_ID : process.env.GOOGLE_IOS_CLIENT_ID;
+  const clientId = googleClientIdOf(platform);
   const client = new OAuth2Client(clientId);
 
   if (!idToken) {
     return res.status(400).send('Please provided idToken');
+  }
+
+  // 沒有 audience 時，verifyIdToken 不會檢查這張 token 是發給哪個應用程式的
+  if (!clientId) {
+    return res.status(503).send('Google login is not configured for this platform');
   }
 
   try {
@@ -699,6 +711,7 @@ router.post('/app/deleteUser/', async (req, res) => {
 
         // --- 執行本機資料庫使用者刪除 ---
         await User.findByIdAndDelete(user._id);
+        await StudioSave.deleteOne({ _id: String(user._id) });
 
         // 將這把 Token 加入黑名單
         const tokenBlackList = new TokenBlackList({

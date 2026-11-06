@@ -54,6 +54,18 @@ const stats = guard(async (req, res) => {
   });
 });
 
+// Everything an offline copy of the dictionary needs. The review data and search keys stay on the server
+const WORD_FIELDS = 'readings romaji level levels pos posRaw verbClass categories meanings related suruVerb suruNoun legacyIds allLegacyIds examples forms order revision updatedAt';
+
+const words = guard(async (req, res) => {
+  const list = await DictWord.find().select(WORD_FIELDS).sort({ order: 1, _id: 1 }).lean();
+  const version = list.reduce((latest, w) => {
+    const at = new Date(w.updatedAt).getTime() || 0;
+    return at > latest ? at : latest;
+  }, 0);
+  res.json({ success: true, total: list.length, version, words: list });
+});
+
 const questions = guard(async (req, res) => {
   const level = parseLevel(req.query.level);
   if (!level) {
@@ -173,4 +185,5 @@ module.exports = {
   record,
   stats,
   userStats,
+  words,
 };

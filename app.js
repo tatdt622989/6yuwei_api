@@ -19,6 +19,7 @@ const guessAICanvasRouter = require('./routes/guessai_canvas');
 const reisuiRouter = require('./routes/reisui');
 const dictWordsRouter = require('./routes/dictWords');
 const dictVocabularyRouter = require('./routes/dictVocabulary');
+const studioSaveRouter = require('./routes/studioSave');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
@@ -122,6 +123,8 @@ app.use(
   }),
 );
 
+// 存檔比一般請求大，要先於全域的 JSON 解析
+app.use('/studio/save/', express.json({ limit: '5mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -156,6 +159,7 @@ app.use('/members/', memberRouter);
 app.use('/guessai_canvas/', guessAICanvasRouter);
 app.use('/reisui/codes/', reisuiRouter);
 app.use('/dict/admin/words/', dictWordsRouter);
+app.use('/studio/save/', studioSaveRouter);
 
 // other routes..
 app.get('/', (req, res) => {
