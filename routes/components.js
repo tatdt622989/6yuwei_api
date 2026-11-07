@@ -60,6 +60,14 @@ const componentsController = require('../controllers/components');
 
 const limitComponentAI = limitRequestsByIp({ scope: 'component-ai', maxRequests: 30, windowMs: 60 * 60 * 1000 });
 
+// Every generation costs money, so it stays off unless COMPONENT_AI_ENABLED is "true"
+const requireComponentAI = (req, res, next) => {
+  if (process.env.COMPONENT_AI_ENABLED === 'true') {
+    return next();
+  }
+  return res.status(503).send('The component generator is turned off.');
+};
+
 const frontendDomain = process.env.FRONTEND_DOMAIN;
 const apiDomain = process.env.API_DOMAIN;
 
@@ -93,10 +101,10 @@ router.get('/types/cover/:filename', helmet({
 }), componentsController.readTypeCover);
 
 // 使用gpt-4生成元件
-router.post('/generate/', requireUser, limitComponentAI, upload.none(), componentsController.generateComponent);
+router.post('/generate/', requireComponentAI, requireUser, limitComponentAI, upload.none(), componentsController.generateComponent);
 
 // 根據元件ID和prompt來修改已生成元件的樣式
-router.post('/generate/update/', requireUser, limitComponentAI, upload.none(), componentsController.updateComponent);
+router.post('/generate/update/', requireComponentAI, requireUser, limitComponentAI, upload.none(), componentsController.updateComponent);
 
 // 建立元件類型
 router.post('/admin/types/', requireAdmin, upload.none(), componentsController.createComponentType);
