@@ -8,6 +8,7 @@ const multer = require('multer');
 
 const upload = multer();
 const { requireUser, requireAdmin } = require('../middlewares/auth');
+const { limitRequestsByIp } = require('../middlewares/rateLimit');
 const componentsController = require('../controllers/components');
 
 // multer 設定
@@ -57,6 +58,8 @@ const componentsController = require('../controllers/components');
 //   encoding: 'utf-8',
 // });
 
+const limitComponentAI = limitRequestsByIp({ scope: 'component-ai', maxRequests: 30, windowMs: 60 * 60 * 1000 });
+
 const frontendDomain = process.env.FRONTEND_DOMAIN;
 const apiDomain = process.env.API_DOMAIN;
 
@@ -90,10 +93,10 @@ router.get('/types/cover/:filename', helmet({
 }), componentsController.readTypeCover);
 
 // 使用gpt-4生成元件
-router.post('/generate/', requireUser, upload.none(), componentsController.generateComponent);
+router.post('/generate/', requireUser, limitComponentAI, upload.none(), componentsController.generateComponent);
 
 // 根據元件ID和prompt來修改已生成元件的樣式
-router.post('/generate/update/', requireUser, upload.none(), componentsController.updateComponent);
+router.post('/generate/update/', requireUser, limitComponentAI, upload.none(), componentsController.updateComponent);
 
 // 建立元件類型
 router.post('/admin/types/', requireAdmin, upload.none(), componentsController.createComponentType);

@@ -34,7 +34,6 @@ const publicRoutes = [
   '/app/deleteUser/',
   '/google/callback/',
   '/guessai_canvas/socket.io/',
-  '/guessai_canvas/theme/',
   '/guessai_canvas/simple_user/',
   '/guessai_canvas/msg_list/',
   '/guessai_canvas/',

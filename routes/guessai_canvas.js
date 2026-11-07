@@ -51,7 +51,7 @@ router.post('/simple_user/', handlePhotoUpload, limitGuessAICanvasUploads, guess
 router.get('/simple_user/', guessAICanvasController.getSimpleUser);
 router.put('/simple_user/', handlePhotoUpload, limitGuessAICanvasUploads, guessAICanvasController.updateSimpleUser);
 router.get('/msg_list/', guessAICanvasController.getMsgList);
-router.post('/theme/', guessAICanvasController.createTheme);
+router.post('/theme/', requireAdmin, guessAICanvasController.createTheme);
 router.get('/canvas/', helmet(
   {
     contentSecurityPolicy: {

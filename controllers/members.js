@@ -1,4 +1,5 @@
 const xss = require('xss');
+const { escapeRegex } = require('../services/text');
 // model
 const { User } = require('../models/user');
 
@@ -9,7 +10,7 @@ const getData = async (req, res) => {
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
-  const keywordFilter = xss(keyword);
+  const keywordFilter = escapeRegex(xss(keyword));
   const query = {};
   if (keywordFilter) {
     query.$or = [
@@ -17,11 +18,14 @@ const getData = async (req, res) => {
       { email: { $regex: keywordFilter, $options: 'i' } },
     ];
   }
-  console.log(query);
 
   try {
     const total = await User.countDocuments(query);
-    const Users = await User.find(query).sort({ createdAt: -1 }).skip(skip).limit(pageSize);
+    const Users = await User.find(query)
+      .select('-password -appleRefreshToken')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize);
 
     return res.json({
       msg: 'Successful query',
@@ -33,9 +37,9 @@ const getData = async (req, res) => {
       success: true,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.status(500).send('Server error');
   }
-  return false;
 };
 
 const updateData = async (req, res) => {
@@ -52,9 +56,9 @@ const updateData = async (req, res) => {
       msg: 'Successful update',
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.status(500).send('Server error');
   }
-  return false;
 };
 
 const deleteData = async (req, res) => {
@@ -65,9 +69,9 @@ const deleteData = async (req, res) => {
       msg: 'Successful delete',
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.status(500).send('Server error');
   }
-  return false;
 };
 
 module.exports = {

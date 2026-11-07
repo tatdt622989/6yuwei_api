@@ -1,9 +1,9 @@
 const { DictWord, DictWordHistory } = require('../models/dictWord');
 const { buildWord, DictWordError, LEVELS } = require('../services/dictWords');
 const { toHiragana, romajiKey } = require('../services/dictWordKeys');
+const { escapeRegex } = require('../services/text');
 
 const LIST_FIELDS = 'readings romaji level levels pos verbClass meanings categories exampleCount formCount quality.flags revision updatedAt';
-const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const editorOf = (req) => ({ userId: String(req.user._id), username: req.user.username });
 
 const guard = (handler) => async (req, res) => {

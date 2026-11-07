@@ -15,6 +15,8 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const { OAuth2Client } = require('google-auth-library');
 const appleSignin = require('apple-signin-auth'); // 引入 apple-signin-auth
 const { requireUser } = require('../middlewares/auth');
+const { limitRequestsByIp } = require('../middlewares/rateLimit');
+const { isText } = require('../services/text');
 
 // models
 const { User } = require('../models/user');
@@ -57,14 +59,25 @@ const upload = multer({
   encoding: 'utf-8',
 });
 
+const MINUTE = 60 * 1000;
+
+// Website visitors can share one address behind a proxy, so the tight limit counts one account per address
+const limitLoginByIp = limitRequestsByIp({ scope: 'login', maxRequests: 100, windowMs: 15 * MINUTE });
+const limitLoginByAccount = limitRequestsByIp({
+  scope: 'login-account',
+  maxRequests: 10,
+  windowMs: 15 * MINUTE,
+  keyOf: (req) => String(req.body?.email).toLowerCase().slice(0, 254),
+});
+const limitSignup = limitRequestsByIp({ scope: 'signup', maxRequests: 20, windowMs: 60 * MINUTE });
+const limitSocialLogin = limitRequestsByIp({ scope: 'social-login', maxRequests: 60, windowMs: 15 * MINUTE });
+
+const LOGIN_FAILED = 'Incorrect email or password';
+
 // 註冊
-router.post('/signup/', async (req, res) => {
+router.post('/signup/', limitSignup, async (req, res) => {
   const { username, email, password } = req.body;
-  if (
-    (username && validator.isEmpty(username))
-    || (email && validator.isEmpty(email))
-    || (password && validator.isEmpty(password))
-  ) {
+  if (!isText(username) || !isText(email) || !isText(password)) {
     return res.status(400).send('Please fill in the complete information');
   }
 
@@ -73,7 +86,7 @@ router.post('/signup/', async (req, res) => {
   }
 
   // 檢查用戶是否存在
-  const existUser = await User.findOne({ email });
+  const existUser = await User.findOne({ email: { $eq: email } });
   if (existUser) {
     return res.status(400).send('User already exists');
   }
@@ -86,9 +99,12 @@ router.post('/signup/', async (req, res) => {
     password,
   });
 
-  await user.save().catch((err) => {
-    res.status(500).send(`Registration Failure-${err}`);
-  });
+  try {
+    await user.save();
+  } catch (err) {
+    console.error('Registration failure:', err);
+    return res.status(500).send('Registration Failure');
+  }
 
   // jwt token
   const token = user.generateAuthToken();
@@ -111,17 +127,10 @@ router.post('/signup/', async (req, res) => {
 });
 
 // 登入
-router.post('/login/', async (req, res) => {
+router.post('/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => {
   const { email, password } = req.body;
 
-  if (
-    !req.body
-    || !email
-    || !password
-    || validator.isEmpty(email)
-    || validator.isEmpty(password)
-    || !validator.isEmail(email)
-  ) {
+  if (!isText(email) || !isText(password) || !validator.isEmail(email)) {
     return res.status(400).send('Please fill in the complete information');
   }
 
@@ -159,10 +168,9 @@ router.post('/login/', async (req, res) => {
         },
       });
     }
-    return res.status(400).send('Incorrect password');
   }
 
-  return res.status(400).send('User does not exist');
+  return res.status(400).send(LOGIN_FAILED);
 });
 
 // Google 登入
@@ -198,7 +206,14 @@ const appCorsOptions = {
       'https://localhost',
     ];
 
-    if (allowedAppOrigins.includes(origin) || origin.includes('127.0.0.1')) {
+    let hostname = '';
+    try {
+      hostname = new URL(origin).hostname;
+    } catch (err) {
+      return callback(null, false);
+    }
+
+    if (allowedAppOrigins.includes(origin) || hostname === '127.0.0.1') {
       return callback(null, true);
     }
     return callback(null, false);
@@ -212,17 +227,10 @@ const appCorsOptions = {
 router.use('/app', cors(appCorsOptions));
 
 // App 登入 (直接回傳 token)
-router.post('/app/login/', async (req, res) => {
+router.post('/app/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => {
   const { email, password } = req.body;
 
-  if (
-    !req.body
-    || !email
-    || !password
-    || validator.isEmpty(email)
-    || validator.isEmpty(password)
-    || !validator.isEmail(email)
-  ) {
+  if (!isText(email) || !isText(password) || !validator.isEmail(email)) {
     return res.status(400).send('Please fill in the complete information');
   }
 
@@ -242,10 +250,9 @@ router.post('/app/login/', async (req, res) => {
         token,
       });
     }
-    return res.status(400).send('Incorrect password');
   }
 
-  return res.status(400).send('User does not exist');
+  return res.status(400).send(LOGIN_FAILED);
 });
 
 function googleClientIdOf(platform) {
@@ -255,7 +262,7 @@ function googleClientIdOf(platform) {
 }
 
 // App Google 登入
-router.post('/app/googleLogin/', async (req, res) => {
+router.post('/app/googleLogin/', limitSocialLogin, async (req, res) => {
   const { idToken, platform } = req.body;
   // 根據 platform 來決定使用不同的 client ID
   const clientId = googleClientIdOf(platform);
@@ -277,6 +284,11 @@ router.post('/app/googleLogin/', async (req, res) => {
     });
     const payload = ticket.getPayload();
     const { email, name, picture } = payload;
+
+    // The account is found by email, so the email must be one Google has confirmed
+    if (!email || payload.email_verified === false) {
+      return res.status(400).send('Google verification failed');
+    }
 
     const user = await new Promise((resolve, reject) => {
       User.findOrCreate(
@@ -322,9 +334,9 @@ router.post('/app/googleLogin/', async (req, res) => {
 });
 
 // App Apple 登入
-router.post('/app/appleLogin/', async (req, res) => {
+router.post('/app/appleLogin/', limitSocialLogin, async (req, res) => {
   const {
-    identityToken, authorizationCode, platform, email, name,
+    identityToken, authorizationCode, platform, name,
   } = req.body;
 
   if (!identityToken) {
@@ -337,34 +349,38 @@ router.post('/app/appleLogin/', async (req, res) => {
   else if (platform === 'android') clientId = process.env.APPLE_ANDROID_CLIENT_ID;
   else if (platform === 'web') clientId = process.env.APPLE_WEB_CLIENT_ID;
 
+  // Without an audience, a token issued to any other app would pass verification
+  if (!clientId) {
+    return res.status(503).send('Apple login is not configured for this platform');
+  }
+
   try {
     // 1. 驗證 Apple Token
-    const payload = await appleSignin.verifyIdToken(identityToken, {
-      audience: clientId,
-      ignoreExpiration: true,
-    });
+    const payload = await appleSignin.verifyIdToken(identityToken, { audience: clientId });
 
     const appleId = payload.sub;
-    const userEmail = email || payload.email;
+    // Only the signed token decides the email. Anything in the request body can be typed by the caller
+    const isVerified = payload.email_verified === true || payload.email_verified === 'true';
+    const verifiedEmail = typeof payload.email === 'string' && isVerified ? payload.email : '';
 
     // 2. 尋找或創建用戶
-    const user = await new Promise((resolve, reject) => {
-      User.findOne({ $or: [{ appleId }, { email: userEmail }] }).then((doc) => {
-        if (doc) {
-          // 如果找到了但尚未綁定 appleId，則綁定
-          // eslint-disable-next-line no-param-reassign
-          if (!doc.appleId) doc.appleId = appleId;
-          resolve(doc);
-        } else {
-          // 如果找不到，自動註冊一個新帳號
-          User.create({
-            username: name || 'Apple User',
-            email: userEmail || `${appleId}@apple.com`, // 提供預設 dummy email 防止報錯
-            appleId,
-          }).then((newUser) => resolve(newUser)).catch(reject);
-        }
-      }).catch(reject);
-    });
+    let user = await User.findOne({ appleId: { $eq: appleId } });
+    if (!user && verifiedEmail) {
+      user = await User.findOne({ email: { $eq: verifiedEmail } });
+      if (user?.appleId) {
+        return res.status(409).send('This email is linked to another Apple account');
+      }
+      // 如果找到了但尚未綁定 appleId，則綁定
+      if (user) user.appleId = appleId;
+    }
+    if (!user) {
+      // 如果找不到，自動註冊一個新帳號
+      user = await User.create({
+        username: isText(name) ? name : 'Apple User',
+        email: verifiedEmail || `${appleId}@apple.com`, // 提供預設 dummy email 防止報錯
+        appleId,
+      });
+    }
 
     // 3. (如果有授權碼) 換取並儲存 Refresh Token 供未來刪除帳號用
     if (authorizationCode) {
@@ -539,6 +555,9 @@ router.get('/user/', async (req, res) => {
         }
         // 尋找用戶
         const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(403).send('User not found');
+        }
         return res.json({
           msg: 'Success',
           user: {
@@ -591,6 +610,9 @@ router.put('/user/', upload.single('photo'), async (req, res) => {
         }
         // 修改用戶資料
         const user = await User.findById(decoded.userId);
+        if (!user) {
+          return res.status(403).send('User not found');
+        }
         user.username = username ?? '';
         user.phone = phone ?? '';
         user.country = country ?? '';

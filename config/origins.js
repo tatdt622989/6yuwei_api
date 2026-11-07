@@ -39,6 +39,8 @@ const guessAICanvasContentSecurityPolicyDirectives = {
   scriptSrc: ["'self'", "'unsafe-inline'", ...guessAICanvasCspOrigins],
   styleSrc: ["'self'", "'unsafe-inline'", ...guessAICanvasCspOrigins],
   frameAncestors: ["'self'", ...guessAICanvasCspOrigins],
+  // The canvas page runs AI-written scripts, so it gets no access to this API's origin or cookies
+  sandbox: ['allow-scripts'],
 };
 
 module.exports = {

@@ -32,6 +32,10 @@ userSchema.pre('save', async function (next) {
 // compare password
 userSchema.methods.comparePassword = async function (password) {
   const user = this; // document
+  // Accounts made through Google or Apple have no password
+  if (!user.password || typeof password !== 'string') {
+    return false;
+  }
   const isPass = await bcrypt.compare(password, user.password);
   return isPass;
 };

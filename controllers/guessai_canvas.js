@@ -1,11 +1,25 @@
 /* eslint-disable no-underscore-dangle */
 const jwt = require('jsonwebtoken');
-const { GoogleGenAI, FunctionCallingConfigMode } = require('@google/genai');
 const path = require('path');
 const fs = require('fs');
 const xss = require('xss');
+const { removeUploadedFile } = require('../middlewares/rateLimit');
+const { sendUpload } = require('../services/uploadFiles');
+const { escapeRegex, isText } = require('../services/text');
 
-const geminiAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Loaded on first use: the library adds about 25 MB to the running process
+let gemini;
+const getGemini = () => {
+  if (!gemini) {
+    // eslint-disable-next-line global-require
+    const { GoogleGenAI, FunctionCallingConfigMode } = require('@google/genai');
+    gemini = {
+      client: new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }),
+      FunctionCallingConfigMode,
+    };
+  }
+  return gemini;
+};
 
 const apiDomain = process.env.API_DOMAIN;
 
@@ -31,9 +45,15 @@ const buildCanvasGenerationError = (io, status, error) => {
   return buildCanvasGenerationResult(false, status, error);
 };
 
+// Multer stores the file before these checks run, so a refused request must not leave it on disk
+const refuseUpload = async (req, res, status, message) => {
+  await removeUploadedFile(req.file);
+  return res.status(status).send(message);
+};
+
 const createSimpleUser = async (req, res) => {
   if (req.fileError) {
-    return res.status(400).send(req.fileError);
+    return refuseUpload(req, res, 400, req.fileError);
   }
 
   const recaptchaToken = req.body.token;
@@ -48,15 +68,15 @@ const createSimpleUser = async (req, res) => {
     const json = await recaptchaRes.json();
     const { success, score } = json;
     if (!success || score < 0.5) {
-      return res.status(403).send('Recaptcha failed');
+      return refuseUpload(req, res, 403, 'Recaptcha failed');
     }
   } else {
-    return res.status(500).send('Recaptcha failed');
+    return refuseUpload(req, res, 500, 'Recaptcha failed');
   }
   const { name } = req.body;
 
-  if (!name) {
-    return res.status(400).send('Name is required');
+  if (!isText(name)) {
+    return refuseUpload(req, res, 400, 'Name is required');
   }
 
   const filename = req.file?.filename;
@@ -67,6 +87,13 @@ const createSimpleUser = async (req, res) => {
     score: 0,
   });
 
+  try {
+    await simpleUser.save();
+  } catch (err) {
+    console.error('Registration failure:', err);
+    return refuseUpload(req, res, 500, 'Registration Failure');
+  }
+
   // jwt token
   const token = simpleUser.generateAuthToken();
 
@@ -75,10 +102,6 @@ const createSimpleUser = async (req, res) => {
     secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
     sameSite: 'lax', // 避免CSRF攻擊
     maxAge: 1000 * 60 * 60 * 24 * 365, // 1 year
-  });
-
-  await simpleUser.save().catch((err) => {
-    res.status(500).send(`Registration Failure-${err}`);
   });
 
   return res.json({
@@ -92,15 +115,18 @@ const createSimpleUser = async (req, res) => {
 
 const createTheme = async (req, res) => {
   const { list } = req.body;
-  if (!list) {
+  if (!Array.isArray(list)) {
     return res.status(400).send('List is required');
   }
   // check if list is empty
   if (!list.length) {
     return res.status(400).send('List is empty');
   }
+  if (!list.every((item) => isText(item?.themeTW) && isText(item?.themeEN) && isText(item?.themeJP))) {
+    return res.status(400).send('Every item needs themeTW, themeEN and themeJP');
+  }
 
-  const oldList = await Theme.find().catch((err) => res.status(500).send(`Find db failure-${err}`));
+  const oldList = await Theme.find();
   const tempList = [...oldList];
   const newList = list.filter((item) => {
     let isDuplicate = false;
@@ -125,7 +151,8 @@ const createTheme = async (req, res) => {
   try {
     await Theme.insertMany(newList);
   } catch (err) {
-    return res.status(500).send(`Save to db failure-${err}`);
+    console.error('Save theme failure:', err);
+    return res.status(500).send('Save to db failure');
   }
 
   return res.json({
@@ -162,12 +189,7 @@ const getSimpleUser = async (req, res) => {
   return null;
 };
 
-const getUserPhoto = async (req, res) => {
-  const { filename } = req.params;
-  const imgPath = path.join(__dirname, `../uploads/guessai_canvas/img/${filename}`);
-  res.set('Cache-Control', 'no-cache');
-  res.sendFile(imgPath);
-};
+const getUserPhoto = (req, res) => sendUpload(res, 'guessai_canvas/img', req.params.filename);
 
 const getMsgList = async (req, res) => {
   const msgList = await Messages.find().populate('user').sort({ createdAt: -1 }).limit(1000);
@@ -275,21 +297,21 @@ const getRanking = async (req, res) => {
 
 const updateSimpleUser = async (req, res) => {
   if (req.fileError) {
-    return res.status(400).send(req.fileError);
+    return refuseUpload(req, res, 400, req.fileError);
   }
 
   // const { score } = req.body;
   const token = req.cookies.guessai_canvas_access_token;
 
   if (!token) {
-    return res.status(403).send('No token');
+    return refuseUpload(req, res, 403, 'No token');
   }
 
   await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
     if (decoded) {
       const simpleUser = await SimpleUser.findById(decoded.userId);
       if (!simpleUser) {
-        return res.status(403).send('User not found');
+        return refuseUpload(req, res, 403, 'User not found');
       }
 
       const filename = req.file?.filename;
@@ -318,9 +340,9 @@ const updateSimpleUser = async (req, res) => {
 
     if (err) {
       if (err.name === 'TokenExpiredError') {
-        return res.status(403).send('Login timeout, please login again');
+        return refuseUpload(req, res, 403, 'Login timeout, please login again');
       }
-      return res.status(403).send('Please login first');
+      return refuseUpload(req, res, 403, 'Please login first');
     }
 
     return null;
@@ -332,17 +354,23 @@ const updateSimpleUser = async (req, res) => {
 const updateCanvas = async (req, res) => { };
 
 const getCanvasList = async (req, res) => {
-  const { page, keyword } = req.query;
-  if (Number(page) < 1) {
+  const { keyword } = req.query;
+  const page = req.query.page === undefined ? 1 : Number(req.query.page);
+  if (!Number.isInteger(page) || page < 1) {
     return res.status(404).send('Not found');
   }
   const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
+  if (!firstCanvas) {
+    return res.json({
+      canvasList: [], currentPage: page, solvedProbability: 0, resultTotal: 0, resultTotalPage: 0, total: 0,
+    });
+  }
   const total = await GuessAICanvas.countDocuments({ _id: { $ne: firstCanvas._id } });
   const solvedCanvasCount = await GuessAICanvas
     .countDocuments({ correctRespondent: { $exists: true }, _id: { $ne: firstCanvas._id } });
   const query = { _id: { $ne: firstCanvas._id } };
   if (keyword) {
-    const keywordFilter = xss(keyword);
+    const keywordFilter = escapeRegex(xss(keyword));
     query.$or = [
       { answerTW: { $regex: keywordFilter, $options: 'i' } },
       { answerEN: { $regex: keywordFilter, $options: 'i' } },
@@ -351,12 +379,12 @@ const getCanvasList = async (req, res) => {
   }
   const resultTotal = await GuessAICanvas.countDocuments(query);
   const resultTotalPage = Math.ceil(resultTotal / 12);
-  const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((Number(page) - 1) * 12)
+  const canvasList = await GuessAICanvas.find(query).populate('correctRespondent').sort({ createdAt: -1 }).skip((page - 1) * 12)
     .limit(12);
 
   return res.json({
     canvasList,
-    currentPage: Number(page),
+    currentPage: page,
     solvedProbability: Number(((solvedCanvasCount / total) * 100).toFixed(2)),
     resultTotal,
     resultTotalPage,
@@ -398,6 +426,7 @@ const generateCanvas = async (io) => {
     // Try Gemini API up to 2 times; on failure don't write to DB
     // so the next user message will retrigger generation
     let content = null;
+    const { client: geminiAI, FunctionCallingConfigMode } = getGemini();
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         console.log(`Attempt ${attempt + 1} to generate canvas with theme: ${theme.themeEN}`);
@@ -547,7 +576,7 @@ const generateCanvas = async (io) => {
         theme.themeEN.toLowerCase().replace(' ', '').charAt(0).toUpperCase() + theme.themeEN.toLowerCase().replace(' ', '').slice(1), // remove space and capitalize first letter
       ];
       for (let i = 0; i < answers.length; i += 1) {
-        content.code = content.code.replace(new RegExp(answers[i], 'g'), randomEN);
+        content.code = content.code.replace(new RegExp(escapeRegex(answers[i]), 'g'), randomEN);
       }
     }
 

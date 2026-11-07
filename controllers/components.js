@@ -1,128 +1,77 @@
-const OpenAI = require('openai');
-
 /* eslint-disable no-underscore-dangle */
 const path = require('path');
 const fs = require('fs');
 
 const xss = require('xss');
 
-const createDOMPurify = require('dompurify');
-const { JSDOM } = require('jsdom');
+// These libraries add about 70 MB to the running process and only the generator uses them,
+// so they load on first use
+let openai;
+const getOpenAI = () => {
+  if (!openai) {
+    // eslint-disable-next-line global-require
+    const OpenAI = require('openai');
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY2 });
+  }
+  return openai;
+};
 
-const { window } = new JSDOM('');
-
-const OpenAIAPIKey = process.env.OPENAI_API_KEY2;
-
-const openai = new OpenAI({
-  apiKey: OpenAIAPIKey,
-});
+let purifier;
+const sanitizeHTML = (html) => {
+  if (!purifier) {
+    /* eslint-disable global-require */
+    const createDOMPurify = require('dompurify');
+    const { JSDOM } = require('jsdom');
+    /* eslint-enable global-require */
+    purifier = createDOMPurify(new JSDOM('').window);
+  }
+  return purifier.sanitize(html);
+};
 
 const apiDomain = process.env.API_DOMAIN;
+
+const mongoose = require('mongoose');
 
 // models
 const { Component, ComponentType } = require('../models/component');
 const { User, UserTransition } = require('../models/user');
 const { getClientIp } = require('../middlewares/clientIp');
+const { sendUpload } = require('../services/uploadFiles');
+const { escapeRegex, isText } = require('../services/text');
 
-const readCSSFile = async (req, res) => {
-  const { filename } = req.params;
-  const styleFilePath = path.join(__dirname, `../uploads/css/${filename}`);
-  res.set('Cache-Control', 'no-cache');
-  res.sendFile(styleFilePath);
-};
+const readCSSFile = (req, res) => sendUpload(res, 'css', req.params.filename);
 
-const readJavascriptFile = async (req, res) => {
-  const { filename } = req.params;
-  const javascriptFilePath = path.join(__dirname, `../uploads/js/${filename}`);
-  res.set('Cache-Control', 'no-cache');
-  res.sendFile(javascriptFilePath);
-};
+const readJavascriptFile = (req, res) => sendUpload(res, 'js', req.params.filename);
 
-const readScreenshot = async (req, res) => {
-  const { filename } = req.params;
-  const imgFilePath = path.join(__dirname, `../uploads/component_img/${filename}`);
-  res.set('Cache-Control', 'no-cache');
-  fs.access(imgFilePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      // 文件不存在，返回 404 错误
-      res.status(404).send('File not found');
-    } else {
-      res.sendFile(imgFilePath);
-    }
-  });
-};
+const readScreenshot = (req, res) => sendUpload(res, 'component_img', req.params.filename);
 
-const readTypeCover = async (req, res) => {
-  const { filename } = req.params;
-  const imgFilePath = path.join(__dirname, `../uploads/component_type_img/${filename}`);
-  res.set('Cache-Control', 'no-cache');
-  fs.access(imgFilePath, fs.constants.F_OK, (err) => {
-    if (err) {
-      // 文件不存在，返回 404 錯誤
-      res.status(404).send('File not found');
-    } else {
-      res.sendFile(imgFilePath);
-    }
-  });
-};
+const readTypeCover = (req, res) => sendUpload(res, 'component_type_img', req.params.filename);
+
+// One credit pays for one AI call. The check and the charge are one database step, so parallel
+// requests cannot spend the same credit twice
+const chargeCredit = (userId) => User.findOneAndUpdate(
+  { _id: userId, balance: { $gte: 1 } },
+  { $inc: { balance: -1 } },
+  { new: true },
+);
+
+const recordCharge = (req, type) => new UserTransition({
+  userId: req.user._id,
+  amount: -1,
+  type,
+  ip: req.clientIp || getClientIp(req),
+}).save();
 
 const generateComponent = async (req, res) => {
   const { prompt, typeId } = req.body;
 
-  if (!prompt || !typeId) {
+  if (!isText(prompt) || !mongoose.isValidObjectId(typeId)) {
     return res.status(400).send('Invalid request');
   }
 
   if (prompt.length > 150) {
     return res.status(400).send('Prompt too long');
   }
-
-  // 暫時不使用交易功能
-  // const session = await mongoose.startSession();
-  // session.startTransaction();
-  // try {
-  //   // 判斷點數是否足夠
-  //   if (req.user.balance < 1) {
-  //     return res.status(400).send('Insufficient balance');
-  //   }
-  //   // 扣除點數
-  //   const user = await User.findById(req.user._id).session(session);
-  //   user.balance -= 1;
-  //   await user.save()
-  //   // 增加交易記錄
-  //   const transaction = new UserTransition({
-  //     userId: req.user._id,
-  //     amount: -1,
-  //     type: 'component generate',
-  //     ip: req.ip,
-  //   });
-  //   await transaction.save();
-  //   await session.commitTransaction();
-  //   session.endSession();
-  // } catch (error) {
-  //   await session.abortTransaction();
-  //   session.endSession();
-  //   return res.status(500).send('Transaction failed');
-  // }
-
-  // 判斷點數是否足夠
-  if (req.user.balance < 1) {
-    return res.status(400).send('Insufficient balance');
-  }
-
-  // 扣除點數
-  const user = await User.findById(req.user._id);
-  user.balance -= 1;
-  await user.save();
-
-  // 增加交易記錄
-  const transaction = new UserTransition({
-    userId: req.user._id,
-    amount: -1,
-    type: 'component generate',
-    ip: req.clientIp || getClientIp(req),
-  });
-  await transaction.save();
 
   // prompt xss filter
   const promptXss = xss(prompt);
@@ -140,8 +89,14 @@ const generateComponent = async (req, res) => {
     return res.status(400).send('Invalid request');
   }
 
+  // 判斷點數是否足夠並扣除
+  if (!await chargeCredit(req.user._id)) {
+    return res.status(400).send('Insufficient balance');
+  }
+  await recordCharge(req, 'component generate');
+
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         {
@@ -221,8 +176,7 @@ const generateComponent = async (req, res) => {
     }
 
     const { html } = content;
-    const DOMPurify = createDOMPurify(window);
-    const cleanHTML = DOMPurify.sanitize(html);
+    const cleanHTML = sanitizeHTML(html);
 
     // save component to db
     const component = new Component({
@@ -251,7 +205,7 @@ const generateComponent = async (req, res) => {
 const updateComponent = async (req, res) => {
   const { prompt, componentId } = req.body;
 
-  if (!prompt || !componentId) {
+  if (!isText(prompt) || !mongoose.isValidObjectId(componentId)) {
     return res.status(400).send('Invalid request');
   }
 
@@ -270,14 +224,11 @@ const updateComponent = async (req, res) => {
     return res.status(403).send('Unauthorized');
   }
 
-  // 判斷點數是否足夠
-  if (req.user.balance < 1) {
+  // 判斷點數是否足夠並扣除
+  if (!await chargeCredit(req.user._id)) {
     return res.status(400).send('Insufficient balance');
   }
-
-  // 扣除點數
-  const user = await User.findById(req.user._id);
-  user.balance -= 1;
+  await recordCharge(req, 'component update');
 
   // prompt xss filter
   const promptXss = xss(prompt);
@@ -297,7 +248,7 @@ const updateComponent = async (req, res) => {
       oldStyle = oldStyle.slice(0, 2000);
     }
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: 'You are a proficient Front-End Engineer with expertise in HTML and CSS, committed to creating safe and high-quality web designs, while also being an outstanding animator.' },
@@ -378,8 +329,7 @@ const updateComponent = async (req, res) => {
     fs.unlinkSync(styleFilePath);
 
     const { html } = content;
-    const DOMPurify = createDOMPurify(window);
-    const cleanHTML = DOMPurify.sanitize(html);
+    const cleanHTML = sanitizeHTML(html);
 
     // update component to db
     // component.title = promptXss;
@@ -445,7 +395,7 @@ const getComponents = async (req, res) => {
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
-  const keywordFilter = xss(keyword);
+  const keywordFilter = escapeRegex(xss(keyword));
   try {
     const query = {};
     if (keywordFilter) {
@@ -486,7 +436,7 @@ const getUserComponents = async (req, res) => {
   const pageSize = parseInt(limit, 10) || 12;
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
-  const keywordFilter = xss(keyword);
+  const keywordFilter = escapeRegex(xss(keyword));
 
   try {
     let components;

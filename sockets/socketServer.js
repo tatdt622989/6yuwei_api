@@ -1,6 +1,4 @@
 const { Server } = require('socket.io');
-const { createAdapter } = require('@socket.io/cluster-adapter');
-const { setupWorker } = require('@socket.io/sticky');
 const { getAllowedOrigins } = require('../config/origins');
 const socketHandlers = require('./socketHandlers');
 
@@ -15,12 +13,12 @@ module.exports = (server) => {
       origin: allowedOrigins,
       credentials: true,
     },
+    // CORS does not cover WebSocket connections, so check the page they come from here
+    allowRequest: (req, callback) => {
+      const { origin } = req.headers;
+      callback(null, !origin || allowedOrigins.includes(origin));
+    },
   });
-
-  // if (process.env.NODE_ENV === 'production') {
-  //   io.adapter(createAdapter());
-  //   setupWorker(io);
-  // }
 
   // socket.io
   io.on('connection', (socket) => {
@@ -30,12 +28,5 @@ module.exports = (server) => {
     console.log('a user connected');
 
     socketHandlers(io, socket, accessToken);
-  });
-
-  io.on('connection_error', (err) => {
-    console.log(err.req); // the request object
-    console.log(err.code); // the error code, for example 1
-    console.log(err.message); // the error message, for example "Session ID unknown"
-    console.log(err.context); // some additional error context
   });
 };

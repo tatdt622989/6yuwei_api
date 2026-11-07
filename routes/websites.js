@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const validator = require('validator');
+const { escapeRegex } = require('../services/text');
 const { requireAdmin } = require('../middlewares/auth');
 const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 
@@ -149,9 +150,8 @@ router.get('/admin/', requireAdmin, async (req, res) => {
     return res.status(400).send('Lack of essential information');
   }
   const page = req.query.page || 1;
-  let keyword = req.query.keyword || '';
-  keyword = validator.escape(keyword);
-  const regex = new RegExp(keyword, 'i');
+  const keyword = typeof req.query.keyword === 'string' ? req.query.keyword : '';
+  const regex = new RegExp(escapeRegex(validator.escape(keyword)), 'i');
   const pageSize = 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   try {
@@ -281,7 +281,7 @@ router.get('/', async (req, res) => {
   const pageSize = req.query.pageSize || 12;
   const skip = (page - 1) * pageSize; // 跳過幾筆
   const sortBy = req.query.sort === 'asc' ? 'asc' : 'desc';
-  const category = req.query.category || '';
+  const category = typeof req.query.category === 'string' ? req.query.category : '';
   const categoryArr = category.split(',')
     .map((item) => validator.escape(item)) // 過濾特殊字元
     .filter((item) => item); // 過濾空字串
@@ -386,9 +386,9 @@ router.use((err, req, res, next) => {
     res.status(400).send(err.message);
   } else {
     // 其他錯誤處理
-    res.status(500).send(err.message);
+    console.error(err);
+    res.status(500).send('Server error');
   }
-  next();
 });
 
 module.exports = router;

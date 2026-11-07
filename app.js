@@ -1,11 +1,11 @@
 require('dotenv').config();
+// Must load before any router: a rejected async handler then reaches the error handler below
+require('express-async-errors');
 const express = require('express');
 const { createServer } = require('http');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 const socketServer = require('./sockets/socketServer');
 const authRouter = require('./routes/auth');
 const websitesRouter = require('./routes/websites');
@@ -24,14 +24,6 @@ const studioUpdatesRouter = require('./routes/studioUpdates');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
-
-const outputLog = fs.createWriteStream('output.log', { flags: 'a' });
-
-// 將console.log輸出到檔案
-console.log = (message) => {
-  outputLog.write(`${new Date().toISOString()}: ${message}\n`);
-  process.stdout.write(`${new Date().toISOString()}: ${message}\n`);
-};
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
@@ -132,8 +124,6 @@ app.use('/studio/save/', express.json({ limit: '5mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static(path.resolve(__dirname, 'public')));
-
 app.use(cookieParser());
 app.use(attachClientIp);
 
@@ -216,6 +206,25 @@ app.get('/health/', (req, res) => {
 // 404
 app.get('*', (req, res) => {
   res.status(404).send('404 - お探しのページは見つかりませんでした');
+});
+
+// 錯誤處理：內部訊息只寫進紀錄，不回傳給用戶端
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+  const status = err.status || err.statusCode;
+  if (status >= 400 && status < 500) {
+    return res.status(status).send('Bad request');
+  }
+  console.error(err);
+  return res.status(500).send('Server error');
+});
+
+// A rejected promise outside a route must not stop the API for everyone
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
 });
 
 // port, callback

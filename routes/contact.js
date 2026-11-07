@@ -3,7 +3,6 @@ const express = require('express');
 
 const router = express.Router();
 const multer = require('multer');
-// const nodemailer = require('nodemailer');
 const Contact = require('../models/contact');
 const { requireAdmin } = require('../middlewares/auth');
 const contactController = require('../controllers/contact');

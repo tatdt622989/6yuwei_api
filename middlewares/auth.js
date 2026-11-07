@@ -4,14 +4,11 @@ const { User } = require('../models/user');
 
 const publicRoutes = require('../config/publicRoutes');
 
+const publicPatterns = publicRoutes.map((route) => new RegExp(`^${route}$`));
+
 async function verifyToken(req, res, next) {
   const url = req.path;
-  if (
-    publicRoutes.some((route) => {
-      const reg = new RegExp(`^${route}$`);
-      return reg.test(url);
-    })
-  ) {
+  if (publicPatterns.some((pattern) => pattern.test(url))) {
     return next();
   }
   const token = req.cookies.access_token;
