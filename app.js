@@ -1,6 +1,4 @@
 require('dotenv').config();
-// Must load before any router: a rejected async handler then reaches the error handler below
-require('express-async-errors');
 const express = require('express');
 const { createServer } = require('http');
 const mongoose = require('mongoose');
@@ -92,6 +90,14 @@ socketServer(server);
 if (env === 'production') {
   app.set('trust proxy', true);
 }
+
+app.disable('x-powered-by');
+
+// Express leaves req.body undefined when a request has no parsed body, and the routes read fields from it
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 
 // App 的公開單字路由，放在全域 CORS 和登入驗證之前：App 沒有登入，也不帶 cookie
 app.use(
@@ -202,7 +208,7 @@ app.get('/health/', (req, res) => {
 }); */
 
 // 404
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).send('404 - お探しのページは見つかりませんでした');
 });
 
