@@ -4,3 +4,8 @@ uploads
 output.log
 ecosystem.config.js
 *.zip
+.DS_Store
+.vscode/
+*.p8
+*.pem
+.env.*
