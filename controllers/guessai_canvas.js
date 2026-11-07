@@ -122,7 +122,8 @@ const createTheme = async (req, res) => {
   if (!list.length) {
     return res.status(400).send('List is empty');
   }
-  if (!list.every((item) => isText(item?.themeTW) && isText(item?.themeEN) && isText(item?.themeJP))) {
+  const isTheme = (item) => isText(item?.themeTW) && isText(item?.themeEN) && isText(item?.themeJP);
+  if (!list.every(isTheme)) {
     return res.status(400).send('Every item needs themeTW, themeEN and themeJP');
   }
 
@@ -362,7 +363,12 @@ const getCanvasList = async (req, res) => {
   const firstCanvas = await GuessAICanvas.findOne().sort({ createdAt: -1 }).limit(1);
   if (!firstCanvas) {
     return res.json({
-      canvasList: [], currentPage: page, solvedProbability: 0, resultTotal: 0, resultTotalPage: 0, total: 0,
+      canvasList: [],
+      currentPage: page,
+      solvedProbability: 0,
+      resultTotal: 0,
+      resultTotalPage: 0,
+      total: 0,
     });
   }
   const total = await GuessAICanvas.countDocuments({ _id: { $ne: firstCanvas._id } });

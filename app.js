@@ -93,7 +93,8 @@ if (env === 'production') {
 
 app.disable('x-powered-by');
 
-// Express leaves req.body undefined when a request has no parsed body, and the routes read fields from it
+// Express leaves req.body undefined when a request has no parsed body,
+// and the routes read fields from it
 app.use((req, res, next) => {
   req.body ??= {};
   next();

@@ -25,7 +25,9 @@ userSchema.pre('save', async function () {
   }
 });
 
-/** The account for this email, created from fields when there is none. Existing accounts stay unchanged. */
+/**
+ * The account for this email, created from fields when there is none.
+ * An existing account stays unchanged. */
 userSchema.statics.findOrCreateByEmail = async function (email, fields) {
   const existing = await this.findOne({ email: { $eq: email } });
   if (existing) {

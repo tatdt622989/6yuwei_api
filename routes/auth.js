@@ -57,7 +57,8 @@ const upload = multer({
 
 const MINUTE = 60 * 1000;
 
-// Website visitors can share one address behind a proxy, so the tight limit counts one account per address
+// Website visitors can share one address behind a proxy,
+// so the tight limit counts one account per address
 const limitLoginByIp = limitRequestsByIp({ scope: 'login', maxRequests: 100, windowMs: 15 * MINUTE });
 const limitLoginByAccount = limitRequestsByIp({
   scope: 'login-account',
@@ -346,7 +347,7 @@ router.post('/app/appleLogin/', limitSocialLogin, async (req, res) => {
     const payload = await appleSignin.verifyIdToken(identityToken, { audience: clientId });
 
     const appleId = payload.sub;
-    // Only the signed token decides the email. Anything in the request body can be typed by the caller
+    // Only the signed token decides the email. The request body can hold anything the caller types
     const isVerified = payload.email_verified === true || payload.email_verified === 'true';
     const verifiedEmail = typeof payload.email === 'string' && isVerified ? payload.email : '';
 
