@@ -39,52 +39,27 @@ const submitForm = async (req, res) => {
   }
 
   try {
-    // Loaded on first use: the library adds about 25 MB to the running process
-    // eslint-disable-next-line global-require
-    const SibApiV3Sdk = require('sib-api-v3-sdk');
-    const defaultClient = SibApiV3Sdk.ApiClient.instance;
-
-    // Configure API key authorization: api-key
-    const apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = process.env.MAIL_API_KEY;
-
-    // Uncomment below two lines to configure authorization using: partner-key
-    // var partnerKey = defaultClient.authentications['partner-key'];
-    // partnerKey.apiKey = 'YOUR API KEY';
-
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-
-    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail = {
-      sender: {
-        name: '6yuwei',
-        email: 'contact@6yuwe.com',
-      },
-      to: [{
-        email: '70212cbkj67@gmail.com',
-        name: '6yuwei',
-      }],
-      htmlContent: `<!DOCTYPE html> <html> <body><h1>官網聯絡表單-${email}</h1><hr><p>${validator.escape(message)}</p></html>`,
-      subject: `官網聯絡表單-${email}`,
+    const mailRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
       headers: {
-        'X-Mailin-custom': 'custom_header_1:custom_value_1|custom_header_2:custom_value_2',
+        accept: 'application/json',
+        'api-key': process.env.MAIL_API_KEY,
+        'content-type': 'application/json',
       },
-      replyTo: {
-        email,
-        name: 'customer',
-      },
-    };
-
-    await new Promise((resolve, reject) => {
-      apiInstance.sendTransacEmail(sendSmtpEmail).then(() => {
-        resolve();
-      }, (error) => {
-        console.error(error);
-        reject(error);
-      });
+      body: JSON.stringify({
+        sender: { name: '6yuwei', email: 'contact@6yuwe.com' },
+        to: [{ email: '70212cbkj67@gmail.com', name: '6yuwei' }],
+        htmlContent: `<!DOCTYPE html> <html> <body><h1>官網聯絡表單-${email}</h1><hr><p>${validator.escape(message)}</p></html>`,
+        subject: `官網聯絡表單-${email}`,
+        replyTo: { email, name: 'customer' },
+      }),
+      signal: AbortSignal.timeout(15000),
     });
+    if (!mailRes.ok) {
+      throw new Error(`mail service answered ${mailRes.status}`);
+    }
   } catch (err) {
-    console.log(err);
+    console.error(err);
     return res.status(500).send('Failed to send');
   }
 
