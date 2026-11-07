@@ -50,7 +50,7 @@ const put = guard(async (req, res) => {
   const saved = await StudioSave.findOneAndUpdate(
     { _id, revision },
     { $set: fields, $inc: { revision: 1 } },
-    { new: true, projection: { revision: 1 } },
+    { returnDocument: 'after', projection: { revision: 1 } },
   ).lean();
   if (!saved) {
     await conflict();

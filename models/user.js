@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const findOrCreate = require('mongoose-findorcreate');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 
@@ -19,15 +18,29 @@ const userSchema = new mongoose.Schema({
   appleRefreshToken: { type: String },
 }, { timestamps: true });
 
-userSchema.plugin(findOrCreate);
-
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
   const user = this; // document
   if (user.isModified('password')) {
     user.password = await bcrypt.hash(user.password, 10);
   }
-  next();
 });
+
+/** The account for this email, created from fields when there is none. Existing accounts stay unchanged. */
+userSchema.statics.findOrCreateByEmail = async function (email, fields) {
+  const existing = await this.findOne({ email: { $eq: email } });
+  if (existing) {
+    return existing;
+  }
+  try {
+    return await this.create({ ...fields, email });
+  } catch (err) {
+    // Another request created the same account first
+    if (err.code !== 11000) {
+      throw err;
+    }
+    return this.findOne({ email: { $eq: email } });
+  }
+};
 
 // compare password
 userSchema.methods.comparePassword = async function (password) {

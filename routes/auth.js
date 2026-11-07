@@ -31,14 +31,10 @@ passport.use(new GoogleStrategy(
     state: false,
   },
   ((accessToken, refreshToken, profile, cb) => {
-    User.findOrCreate(
-      { email: profile.emails[0].value },
-      {
-        username: profile.displayName,
-        externalPhoto: profile.photos[0].value,
-      },
-      (err, user) => cb(err, user),
-    );
+    User.findOrCreateByEmail(profile.emails[0].value, {
+      username: profile.displayName,
+      externalPhoto: profile.photos[0].value,
+    }).then((user) => cb(null, user), cb);
   }),
 ));
 
@@ -290,18 +286,9 @@ router.post('/app/googleLogin/', limitSocialLogin, async (req, res) => {
       return res.status(400).send('Google verification failed');
     }
 
-    const user = await new Promise((resolve, reject) => {
-      User.findOrCreate(
-        { email },
-        {
-          username: name,
-          externalPhoto: picture,
-        },
-        (err, data) => {
-          if (err) reject(err);
-          else resolve(data);
-        },
-      );
+    const user = await User.findOrCreateByEmail(email, {
+      username: name,
+      externalPhoto: picture,
     });
 
     // jwt token

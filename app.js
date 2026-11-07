@@ -77,8 +77,6 @@ mongoose.set('strictQuery', true);
 mongoose
   .connect(mongoUri, {
     family: 4,
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
   })
   .then(() => {
     console.log('資料庫連接成功');

@@ -170,7 +170,7 @@ router.post('/use/', requirePluginToken, ensureLookupAllowed, async (req, res) =
         $set: { used: true },
       },
       {
-        new: true,
+        returnDocument: 'after',
       },
     ).lean();
 

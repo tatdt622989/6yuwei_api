@@ -52,7 +52,7 @@ const readTypeCover = (req, res) => sendUpload(res, 'component_type_img', req.pa
 const chargeCredit = (userId) => User.findOneAndUpdate(
   { _id: userId, balance: { $gte: 1 } },
   { $inc: { balance: -1 } },
-  { new: true },
+  { returnDocument: 'after' },
 );
 
 const recordCharge = (req, type) => new UserTransition({
@@ -487,7 +487,7 @@ const deleteComponent = async (req, res) => {
     }
     // 如果是管理員或是元件擁有者，則可以刪除
     if (req.user.permissions.includes('admin') || component.userId.toString() === req.user._id.toString()) {
-      await component.remove();
+      await component.deleteOne();
       return res.json({
         msg: 'Successful delete',
       });

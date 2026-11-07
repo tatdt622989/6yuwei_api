@@ -108,7 +108,7 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
     const imgPath = path.join(__dirname, '../uploads/admin/img', photo.url);
     fs.unlinkSync(imgPath);
 
-    await photo.remove();
+    await photo.deleteOne();
     threeDCG.photos.pull(photo);
     await threeDCG.save();
 
@@ -196,7 +196,7 @@ router.put('/admin/', requireAdmin, multer().any(), async (req, res) => {
     // do not update photos
     delete data.photos;
     const updatedThreeDCG = await ThreeDCG.findByIdAndUpdate(_id, data, {
-      new: true,
+      returnDocument: 'after',
     }).populate('photos');
     return res.json({
       msg: 'Successful update',
