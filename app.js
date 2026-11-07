@@ -20,6 +20,7 @@ const reisuiRouter = require('./routes/reisui');
 const dictWordsRouter = require('./routes/dictWords');
 const dictVocabularyRouter = require('./routes/dictVocabulary');
 const studioSaveRouter = require('./routes/studioSave');
+const studioUpdatesRouter = require('./routes/studioUpdates');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
@@ -110,6 +111,9 @@ app.use(
   attachClientIp,
   dictVocabularyRouter,
 );
+
+// Mac App 的更新檔，檢查更新時不需要登入
+app.use('/studio/updates/', studioUpdatesRouter);
 
 // 跨域設定
 const allowedOrigins = getAllowedOrigins(env);
