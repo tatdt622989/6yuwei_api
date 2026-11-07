@@ -28,3 +28,6 @@ archive.zip
 ecosystem.config.js
 output.log
 uploads
+docs
+.eslintrc.js
+.nvmrc

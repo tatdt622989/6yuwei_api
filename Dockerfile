@@ -1,31 +1,23 @@
-FROM node:24.22.1-bookworm-slim AS deps
+FROM node:24.22.1-alpine AS deps
 
 WORKDIR /app
-
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev --no-audit --no-fund
 
-FROM node:24.22.1-bookworm-slim AS runner
+FROM node:24.22.1-alpine AS runner
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 WORKDIR /app
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl wget \
-  && rm -rf /var/lib/apt/lists/*
-
 COPY --from=deps /app/node_modules ./node_modules
-COPY --chown=node:node . .
+COPY . .
 
-RUN mkdir -p uploads \
-  && chown -R node:node /app
+# The app can write only to uploads, so a flaw in a route cannot change the code it runs
+RUN mkdir -p uploads && chown node:node uploads
 
 EXPOSE 3000
 
