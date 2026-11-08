@@ -39,24 +39,24 @@ const submitForm = async (req, res) => {
   }
 
   try {
-    const mailRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+    const mailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        accept: 'application/json',
-        'api-key': process.env.MAIL_API_KEY,
-        'content-type': 'application/json',
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        sender: { name: '6yuwei', email: 'contact@6yuwe.com' },
-        to: [{ email: '70212cbkj67@gmail.com', name: '6yuwei' }],
-        htmlContent: `<!DOCTYPE html> <html> <body><h1>官網聯絡表單-${email}</h1><hr><p>${validator.escape(message)}</p></html>`,
+        from: process.env.CONTACT_MAIL_FROM,
+        to: [process.env.CONTACT_MAIL_TO],
+        reply_to: email,
         subject: `官網聯絡表單-${email}`,
-        replyTo: { email, name: 'customer' },
+        html: `<!DOCTYPE html> <html> <body><h1>官網聯絡表單-${email}</h1><hr><p>${validator.escape(message)}</p></body></html>`,
       }),
       signal: AbortSignal.timeout(15000),
     });
     if (!mailRes.ok) {
-      throw new Error(`mail service answered ${mailRes.status}`);
+      const reason = (await mailRes.text()).slice(0, 300);
+      throw new Error(`mail service answered ${mailRes.status}: ${reason}`);
     }
   } catch (err) {
     console.error(err);
