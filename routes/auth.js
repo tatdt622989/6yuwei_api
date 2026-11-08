@@ -6,6 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const passport = require('passport');
@@ -32,6 +33,11 @@ passport.use(new GoogleStrategy(
     state: false,
   },
   ((accessToken, refreshToken, profile, cb) => {
+    // The account is found by email, so the email must be one Google has confirmed
+    if (profile.emails?.[0]?.verified === false) {
+      cb(null, false);
+      return;
+    }
     User.findOrCreateByEmail(profile.emails[0].value, {
       username: profile.displayName,
       externalPhoto: profile.photos[0].value,
@@ -197,6 +203,52 @@ router.get('/google/callback/', passport.authenticate('google', { session: false
   // 用 JS redirect 而非 HTTP 302，確保 Set-Cookie 能穿透 Nuxt proxy
   const redirectUrl = `${process.env.FRONTEND_DOMAIN}admin/account/`;
   res.send(`<html><body><script>window.location.href='${redirectUrl}'</script></body></html>`);
+});
+
+// Google sign-in for the blood pressure PWA. The session cookie has to live on this host,
+// so this flow returns here directly rather than through the main site's proxy.
+const BP_APP_URL = (process.env.BP_APP_URL || 'https://bp.6yuwei.com').replace(/\/$/, '');
+const BP_GOOGLE_CALLBACK = process.env.BP_GOOGLE_CALLBACK_URL
+  || 'https://api.6yuwei.com/bp/google/callback/';
+const BP_GOOGLE_STATE_COOKIE = 'bp_google_state';
+const bpGoogleStateCookie = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/bp/google/',
+};
+
+const sameState = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+};
+
+router.get('/bp/google/', limitSocialLogin, (req, res, next) => {
+  // Ties the answer from Google to this browser, so nobody can sign someone else in to their account
+  const state = crypto.randomBytes(24).toString('hex');
+  res.cookie(BP_GOOGLE_STATE_COOKIE, state, { ...bpGoogleStateCookie, maxAge: 10 * MINUTE });
+  passport.authenticate('google', {
+    session: false,
+    scope: ['email', 'profile'],
+    callbackURL: BP_GOOGLE_CALLBACK,
+    prompt: 'select_account',
+    state,
+  })(req, res, next);
+});
+
+router.get('/bp/google/callback/', limitSocialLogin, (req, res, next) => {
+  const fail = () => res.redirect(`${BP_APP_URL}/login?google=failed`);
+  const expected = req.cookies[BP_GOOGLE_STATE_COOKIE];
+  res.clearCookie(BP_GOOGLE_STATE_COOKIE, bpGoogleStateCookie);
+  if (!sameState(req.query.state, expected)) return fail();
+  return passport.authenticate('google', {
+    session: false,
+    callbackURL: BP_GOOGLE_CALLBACK,
+  }, (error, user) => {
+    if (error || !user) return fail();
+    startCookieSession(res, user, true);
+    return res.redirect(`${BP_APP_URL}/`);
+  })(req, res, next);
 });
 
 // App 專用 CORS 設定

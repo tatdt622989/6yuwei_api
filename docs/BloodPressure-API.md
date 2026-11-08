@@ -8,6 +8,17 @@
 
 `/signup/` 和 `/login/` 多了選用欄位 `remember: true`：簽發 30 天的 token 和持久 cookie。不帶這個欄位時行為不變（`TOKEN_EXPIRES_IN` 的 token 加 session cookie）。PWA 需要它，否則每次關閉 App 都可能要重新登入。
 
+### Google 登入
+
+`GET /bp/google/` 導向 Google，登入後回到 `GET /bp/google/callback/`，在這個網域設定 30 天的 `access_token` cookie，再導回 App。失敗時導回 `/login?google=failed`。cookie 裡的 `state` 用來確認回應屬於同一個瀏覽器。
+
+Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://api.6yuwei.com/bp/google/callback/` 加進「已授權的重新導向 URI」。
+
+| 環境變數 | 預設值 | 說明 |
+|---|---|---|
+| `BP_APP_URL` | `https://bp.6yuwei.com` | 登入後導回的網址 |
+| `BP_GOOGLE_CALLBACK_URL` | `https://api.6yuwei.com/bp/google/callback/` | 告訴 Google 的回呼網址 |
+
 ## `POST /bp/sync/`
 
 上傳本機變更，同時取回伺服器上的新資料。

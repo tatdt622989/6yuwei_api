@@ -33,6 +33,8 @@ const publicRoutes = [
   '/app/appleLogin/',
   '/app/deleteUser/',
   '/google/callback/',
+  '/bp/google/',
+  '/bp/google/callback/',
   '/guessai_canvas/socket.io/',
   '/guessai_canvas/simple_user/',
   '/guessai_canvas/msg_list/',
