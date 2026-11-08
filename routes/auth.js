@@ -22,6 +22,7 @@ const { isText } = require('../services/text');
 const { User } = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
 const StudioSave = require('../models/studioSave');
+const { removeAccountData: removeBloodPressureData } = require('../services/bpSync');
 
 passport.use(new GoogleStrategy(
   {
@@ -71,9 +72,31 @@ const limitSocialLogin = limitRequestsByIp({ scope: 'social-login', maxRequests:
 
 const LOGIN_FAILED = 'Incorrect email or password';
 
+const REMEMBERED_SESSION = '30d';
+const REMEMBERED_SESSION_MS = 30 * 24 * 60 * MINUTE;
+
+/**
+ * Signs the user in with the access_token cookie. `remember` keeps the session across app
+ * restarts, which installed PWAs need because they can lose session cookies when closed.
+ */
+const startCookieSession = (res, user, remember) => {
+  const token = remember === true
+    ? user.generateAuthToken(REMEMBERED_SESSION)
+    : user.generateAuthToken();
+
+  res.cookie('access_token', token, {
+    httpOnly: true, // 只能在伺服器端讀取cookie
+    secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
+    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
+    ...(remember === true ? { maxAge: REMEMBERED_SESSION_MS } : {}),
+  });
+};
+
 // 註冊
 router.post('/signup/', limitSignup, async (req, res) => {
-  const { username, email, password } = req.body;
+  const {
+    username, email, password, remember,
+  } = req.body;
   if (!isText(username) || !isText(email) || !isText(password)) {
     return res.status(400).send('Please fill in the complete information');
   }
@@ -103,14 +126,7 @@ router.post('/signup/', limitSignup, async (req, res) => {
     return res.status(500).send('Registration Failure');
   }
 
-  // jwt token
-  const token = user.generateAuthToken();
-
-  res.cookie('access_token', token, {
-    httpOnly: true, // 只能在伺服器端讀取cookie
-    secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-  });
+  startCookieSession(res, user, remember);
 
   return res.json({
     msg: 'Register successfully',
@@ -125,7 +141,7 @@ router.post('/signup/', limitSignup, async (req, res) => {
 
 // 登入
 router.post('/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, remember } = req.body;
 
   if (!isText(email) || !isText(password) || !validator.isEmail(email)) {
     return res.status(400).send('Please fill in the complete information');
@@ -139,14 +155,7 @@ router.post('/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => 
     const isMatch = await user.comparePassword(password);
 
     if (isMatch) {
-      // jwt token
-      const token = user.generateAuthToken();
-
-      res.cookie('access_token', token, {
-        httpOnly: true, // 只能在伺服器端讀取cookie
-        secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-        sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-      });
+      startCookieSession(res, user, remember);
 
       return res.json({
         msg: 'Login successful',
@@ -722,6 +731,7 @@ router.post('/app/deleteUser/', async (req, res) => {
         // --- 執行本機資料庫使用者刪除 ---
         await User.findByIdAndDelete(user._id);
         await StudioSave.deleteOne({ _id: String(user._id) });
+        await removeBloodPressureData(user._id);
 
         // 將這把 Token 加入黑名單
         const tokenBlackList = new TokenBlackList({

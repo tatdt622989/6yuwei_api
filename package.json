@@ -4,12 +4,13 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/*.test.js",
     "dev": "nodemon -r dotenv/config ./app.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
     "@google/genai": "^3.0.0",
     "apple-signin-auth": "^2.1.0",
     "bcrypt": "^6.0.0",

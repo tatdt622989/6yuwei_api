@@ -31,3 +31,4 @@ uploads
 docs
 .eslintrc.js
 .nvmrc
+tests

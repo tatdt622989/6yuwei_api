@@ -56,7 +56,7 @@ userSchema.methods.comparePassword = async function (password) {
 };
 
 // generate jwt token
-userSchema.methods.generateAuthToken = function () {
+userSchema.methods.generateAuthToken = function (expiresIn = process.env.TOKEN_EXPIRES_IN) {
   const user = this; // document
 
   if (!user.id) {
@@ -69,7 +69,7 @@ userSchema.methods.generateAuthToken = function () {
       userId: user.id,
     },
     process.env.SECRET_KEY,
-    { expiresIn: process.env.TOKEN_EXPIRES_IN },
+    { expiresIn },
   );
   return token;
 };

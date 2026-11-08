@@ -2,6 +2,7 @@ const xss = require('xss');
 const { escapeRegex } = require('../services/text');
 // model
 const { User } = require('../models/user');
+const { removeAccountData: removeBloodPressureData } = require('../services/bpSync');
 
 const getData = async (req, res) => {
   const {
@@ -65,6 +66,7 @@ const deleteData = async (req, res) => {
   const { id } = req.params;
   try {
     await User.findByIdAndDelete(id);
+    await removeBloodPressureData(id);
     return res.json({
       msg: 'Successful delete',
     });

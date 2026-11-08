@@ -10,6 +10,7 @@ const productionOrigins = [
   'https://6yuwei.com',
   'https://ai.6yuwei.com',
   'https://api.6yuwei.com',
+  'https://bp.6yuwei.com',
   'https://www.6yuwei.com',
   ...sharedFrontendOrigins,
   ...guessAICanvasDedicatedOrigins,
