@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -56,6 +57,8 @@ userSchema.methods.generateAuthToken = function (expiresIn = process.env.TOKEN_E
     {
       userId: user.id,
       sv: user.sessionVersion ?? 0,
+      // Keeps a token signed in the same second as a logged-out one off the blacklist
+      jti: crypto.randomUUID(),
     },
     process.env.SECRET_KEY,
     { expiresIn },
