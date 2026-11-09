@@ -346,12 +346,13 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send('Lack of essential information');
   try {
-    const threeDCG = await ThreeDCG.findById(id).populate({
+    const threeDCG = await ThreeDCG.findOne({ _id: id, visible: true }).populate({
       path: 'photos',
       options: {
         sort: { createdAt: 'desc' },
       },
     });
+    if (!threeDCG) return res.status(404).send('Not found');
     return res.json({
       msg: 'Successful query',
       data: threeDCG,

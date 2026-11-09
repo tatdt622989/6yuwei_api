@@ -349,12 +349,13 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send('Lack of essential information');
   try {
-    const website = await Website.findById(id).populate({
+    const website = await Website.findOne({ _id: id, visible: true }).populate({
       path: 'photos',
       options: {
         sort: { createdAt: 'desc' },
       },
     });
+    if (!website) return res.status(404).send('Not found');
     return res.json({
       msg: 'Successful query',
       data: website,

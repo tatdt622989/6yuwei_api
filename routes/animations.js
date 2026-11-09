@@ -337,12 +337,13 @@ router.get('/:id/', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send('Lack of essential information');
   try {
-    const animation = await Animation.findById(id).populate({
+    const animation = await Animation.findOne({ _id: id, visible: true }).populate({
       path: 'photos',
       options: {
         sort: { createdAt: 'desc' },
       },
     });
+    if (!animation) return res.status(404).send('Not found');
     return res.json({
       msg: 'Successful query',
       data: animation,
