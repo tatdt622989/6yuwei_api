@@ -24,6 +24,16 @@ const { User } = require('../models/user');
 const TokenBlackList = require('../models/token_blackList');
 const StudioSave = require('../models/studioSave');
 const { removeAccountData: removeBloodPressureData } = require('../services/bpSync');
+const {
+  awaitsVerification,
+  claimAccount,
+  confirmEmailWithCode,
+  findByEmail,
+  registerWithPassword,
+  resendVerificationCode,
+  signInWithConfirmedEmail,
+} = require('../services/accounts');
+const { sessionOf } = require('../services/authSession');
 
 passport.use(new GoogleStrategy(
   {
@@ -38,7 +48,7 @@ passport.use(new GoogleStrategy(
       cb(null, false);
       return;
     }
-    User.findOrCreateByEmail(profile.emails[0].value, {
+    signInWithConfirmedEmail(profile.emails[0].value, {
       username: profile.displayName,
       externalPhoto: profile.photos[0].value,
     }).then((user) => cb(null, user), cb);
@@ -77,6 +87,7 @@ const limitSignup = limitRequestsByIp({ scope: 'signup', maxRequests: 20, window
 const limitSocialLogin = limitRequestsByIp({ scope: 'social-login', maxRequests: 60, windowMs: 15 * MINUTE });
 
 const LOGIN_FAILED = 'Incorrect email or password';
+const EMAIL_NOT_VERIFIED = 'Email not verified';
 
 const REMEMBERED_SESSION = '30d';
 const REMEMBERED_SESSION_MS = 30 * 24 * 60 * MINUTE;
@@ -98,51 +109,70 @@ const startCookieSession = (res, user, remember) => {
   });
 };
 
+const sessionUserOf = (user) => ({
+  _id: user.id,
+  username: user.username,
+  email: user.email,
+  permissions: user.permissions,
+  photo: user.photo,
+  externalPhoto: user.externalPhoto,
+  phone: user.phone ?? '',
+  country: user.country ?? '',
+  birth: user.birth ?? '',
+  createdAt: user.createdAt,
+  balance: user.balance,
+});
+
 // 註冊
 router.post('/signup/', limitSignup, async (req, res) => {
-  const {
-    username, email, password, remember,
-  } = req.body;
+  const { username, email, password } = req.body;
   if (!isText(username) || !isText(email) || !isText(password)) {
     return res.status(400).send('Please fill in the complete information');
   }
 
-  if (!validator.isEmail(email)) {
-    return res.status(400).send('Please enter a valid email address');
+  // No session yet: anyone can type any address, so the account waits for its owner to confirm it
+  const { error, status } = await registerWithPassword({ username, email, password });
+  if (error) {
+    return res.status(status).send(error);
   }
 
-  // 檢查用戶是否存在
-  const existUser = await User.findOne({ email: { $eq: email } });
-  if (existUser) {
-    return res.status(400).send('User already exists');
-  }
-
-  // 儲存用戶
-  const user = new User({
-    username,
-    email,
-    phone: '',
-    password,
+  return res.json({
+    msg: 'Verification email sent',
+    verificationRequired: true,
   });
+});
 
-  try {
-    await user.save();
-  } catch (err) {
-    console.error('Registration failure:', err);
-    return res.status(500).send('Registration Failure');
+// 用信箱驗證碼完成註冊並登入
+router.post('/signup/verify/', limitLoginByIp, limitLoginByAccount, async (req, res) => {
+  const {
+    email, password, code, remember,
+  } = req.body;
+  if (!isText(email) || !isText(password) || !isText(code) || !validator.isEmail(email)) {
+    return res.status(400).send('Please fill in the complete information');
+  }
+
+  const { user, error, status } = await confirmEmailWithCode({ email, password, code });
+  if (error) {
+    return res.status(status).send(error);
   }
 
   startCookieSession(res, user, remember);
+  return res.json({ msg: 'Email verified', user: sessionUserOf(user) });
+});
 
-  return res.json({
-    msg: 'Register successfully',
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      permissions: user.permissions,
-    },
-  });
+// 重新寄送驗證碼
+router.post('/signup/resend/', limitSignup, async (req, res) => {
+  const { email } = req.body;
+  if (!isText(email)) {
+    return res.status(400).send('Please fill in the complete information');
+  }
+
+  const { error, status } = await resendVerificationCode(email);
+  if (error) {
+    return res.status(status).send(error);
+  }
+
+  return res.json({ msg: 'Verification email sent if the account is waiting for one' });
 });
 
 // 登入
@@ -154,30 +184,21 @@ router.post('/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => 
   }
 
   // 尋找用戶
-  const user = await User.findOne({ email: { $eq: email } });
+  const user = await findByEmail(email);
 
   if (user) {
     // 比對密碼
     const isMatch = await user.comparePassword(password);
 
     if (isMatch) {
+      if (awaitsVerification(user)) {
+        return res.status(403).send(EMAIL_NOT_VERIFIED);
+      }
       startCookieSession(res, user, remember);
 
       return res.json({
         msg: 'Login successful',
-        user: {
-          _id: user.id,
-          username: user.username,
-          email: user.email,
-          permissions: user.permissions,
-          photo: user.photo,
-          externalPhoto: user.externalPhoto,
-          phone: user.phone ?? '',
-          country: user.country ?? '',
-          birth: user.birth ?? '',
-          createdAt: user.createdAt,
-          balance: user.balance,
-        },
+        user: sessionUserOf(user),
       });
     }
   }
@@ -293,13 +314,16 @@ router.post('/app/login/', limitLoginByIp, limitLoginByAccount, async (req, res)
   }
 
   // 尋找用戶
-  const user = await User.findOne({ email: { $eq: email } });
+  const user = await findByEmail(email);
 
   if (user) {
     // 比對密碼
     const isMatch = await user.comparePassword(password);
 
     if (isMatch) {
+      if (awaitsVerification(user)) {
+        return res.status(403).send(EMAIL_NOT_VERIFIED);
+      }
       // jwt token
       const token = user.generateAuthToken();
 
@@ -348,7 +372,7 @@ router.post('/app/googleLogin/', limitSocialLogin, async (req, res) => {
       return res.status(400).send('Google verification failed');
     }
 
-    const user = await User.findOrCreateByEmail(email, {
+    const user = await signInWithConfirmedEmail(email, {
       username: name,
       externalPhoto: picture,
     });
@@ -415,19 +439,23 @@ router.post('/app/appleLogin/', limitSocialLogin, async (req, res) => {
     // 2. 尋找或創建用戶
     let user = await User.findOne({ appleId: { $eq: appleId } });
     if (!user && verifiedEmail) {
-      user = await User.findOne({ email: { $eq: verifiedEmail } });
+      user = await findByEmail(verifiedEmail);
       if (user?.appleId) {
         return res.status(409).send('This email is linked to another Apple account');
       }
       // 如果找到了但尚未綁定 appleId，則綁定
-      if (user) user.appleId = appleId;
+      if (user) {
+        user.appleId = appleId;
+        await claimAccount(user);
+      }
     }
     if (!user) {
       // 如果找不到，自動註冊一個新帳號
       user = await User.create({
         username: isText(name) ? name : 'Apple User',
-        email: verifiedEmail || `${appleId}@apple.com`, // 提供預設 dummy email 防止報錯
+        email: verifiedEmail.toLowerCase() || `${appleId}@apple.com`, // 提供預設 dummy email 防止報錯
         appleId,
+        ...(verifiedEmail ? { emailVerifiedAt: new Date() } : {}),
       });
     }
 
@@ -545,44 +573,26 @@ router.post('/app/logout/', async (req, res) => {
 router.get('/loginStatus/', async (req, res) => {
   const token = req.cookies.access_token;
   if (token) {
-    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-      if (decoded) {
-        req.user = decoded;
-        const isTokenInBlackList = await TokenBlackList.findOne({ token });
-        if (isTokenInBlackList) {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        // 尋找用戶
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(403).send('User not found');
-        }
-        return res.json({
-          msg: 'Logged in',
-          user: {
-            _id: user.id,
-            username: user.username,
-            email: user.email,
-            permissions: user.permissions,
-            photo: user.photo,
-            externalPhoto: user.externalPhoto,
-            phone: user.phone ?? '',
-            country: user.country ?? '',
-            birth: user.birth ?? '',
-            createdAt: user.createdAt,
-            balance: user.balance,
-          },
-        });
-      }
-      if (err) {
-        if (err.name === 'TokenExpiredError') {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        return res.status(403).send('Please login first');
-      }
-      return null;
+    const { user, error } = await sessionOf(token);
+    if (error) {
+      return res.status(403).send(error);
+    }
+    return res.json({
+      msg: 'Logged in',
+      user: {
+        _id: user.id,
+        username: user.username,
+        email: user.email,
+        permissions: user.permissions,
+        photo: user.photo,
+        externalPhoto: user.externalPhoto,
+        phone: user.phone ?? '',
+        country: user.country ?? '',
+        birth: user.birth ?? '',
+        createdAt: user.createdAt,
+        balance: user.balance,
+      },
     });
-    return null;
   }
   return res.json({
     status: 403,
@@ -591,120 +601,67 @@ router.get('/loginStatus/', async (req, res) => {
 });
 
 // 取得特定用戶資料
-router.get('/user/', async (req, res) => {
-  const token = req.cookies.access_token;
-  if (token) {
-    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-      if (decoded) {
-        // console.log('decoded', decoded);
-        req.user = decoded;
-        const isTokenInBlackList = await TokenBlackList.findOne({ token });
-        if (isTokenInBlackList) {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        // 尋找用戶
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(403).send('User not found');
-        }
-        return res.json({
-          msg: 'Success',
-          user: {
-            _id: user.id,
-            username: user.username,
-            email: user.email,
-            permissions: user.permissions,
-            photo: user.photo ?? '',
-            phone: user.phone ?? '',
-            country: user.country ?? '',
-            birth: user.birth ?? '',
-            balance: user.balance,
-            createdAt: user.createdAt,
-          },
-        });
-      }
-      if (err) {
-        if (err.name === 'TokenExpiredError') {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        return res.status(403).send('Please login first');
-      }
-
-      return null;
-    });
-    return null;
-  }
-  return res.status(403).send('Please login first');
+// verifyToken in app.js has identified the user on both of these routes
+router.get('/user/', requireUser, async (req, res) => {
+  const { user } = req;
+  return res.json({
+    msg: 'Success',
+    user: {
+      _id: user.id,
+      username: user.username,
+      email: user.email,
+      permissions: user.permissions,
+      photo: user.photo ?? '',
+      phone: user.phone ?? '',
+      country: user.country ?? '',
+      birth: user.birth ?? '',
+      balance: user.balance,
+      createdAt: user.createdAt,
+    },
+  });
 });
 
 // 修改用戶資料
-router.put('/user/', upload.single('photo'), async (req, res) => {
+router.put('/user/', requireUser, upload.single('photo'), async (req, res) => {
   if (req.fileError) {
     return res.status(400).send(req.fileError);
   }
 
-  const token = req.cookies.access_token;
+  const { user } = req;
   const userPhotoName = req && req.file && req.file.filename;
   const {
     username, phone, country, birth,
   } = req.body;
-  if (token) {
-    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-      if (decoded) {
-        // console.log('decoded', decoded);
-        req.user = decoded;
-        const isTokenInBlackList = await TokenBlackList.findOne({ token });
-        if (isTokenInBlackList) {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        // 修改用戶資料
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(403).send('User not found');
-        }
-        user.username = username ?? '';
-        user.phone = phone ?? '';
-        user.country = country ?? '';
-        user.birth = birth ?? '';
-        if (userPhotoName) {
-          try {
-            // delete old photo
-            fs.unlinkSync(path.join(__dirname, `../uploads/user/${user.id}/img/${user.photo}`));
-          } catch (error) {
-            console.log('delete old photo error', error);
-          }
-          user.photo = userPhotoName;
-        }
-        await user.save();
-        return res.json({
-          msg: 'Success',
-          user: {
-            _id: user.id,
-            username: user.username,
-            email: user.email,
-            permissions: user.permissions,
-            photo: user.photo ?? '',
-            externalPhoto: user.externalPhoto ?? '',
-            phone: user.phone ?? '',
-            country: user.country ?? '',
-            birth: user.birth ?? '',
-            balance: user.balance,
-            createdAt: user.createdAt,
-          },
-        });
-      }
-      if (err) {
-        if (err.name === 'TokenExpiredError') {
-          return res.status(403).send('Login timeout, please login again');
-        }
-        return res.status(403).send('Please login first');
-      }
-
-      return null;
-    });
-    return null;
+  user.username = username ?? '';
+  user.phone = phone ?? '';
+  user.country = country ?? '';
+  user.birth = birth ?? '';
+  if (userPhotoName) {
+    try {
+      // delete old photo
+      fs.unlinkSync(path.join(__dirname, `../uploads/user/${user.id}/img/${user.photo}`));
+    } catch (error) {
+      console.log('delete old photo error', error);
+    }
+    user.photo = userPhotoName;
   }
-  return res.status(403).send('Please login first');
+  await user.save();
+  return res.json({
+    msg: 'Success',
+    user: {
+      _id: user.id,
+      username: user.username,
+      email: user.email,
+      permissions: user.permissions,
+      photo: user.photo ?? '',
+      externalPhoto: user.externalPhoto ?? '',
+      phone: user.phone ?? '',
+      country: user.country ?? '',
+      birth: user.birth ?? '',
+      balance: user.balance,
+      createdAt: user.createdAt,
+    },
+  });
 });
 
 // 取得用戶餘額
@@ -729,79 +686,66 @@ router.get('/user/balance/', requireUser, async (req, res) => {
 router.post('/app/deleteUser/', async (req, res) => {
   const { token, platform } = req.body;
 
-  if (token) {
-    await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-      if (err || !decoded) {
-        return res.status(403).send('Please login first');
-      }
+  if (isText(token)) {
+    const { user, decoded, error } = await sessionOf(token);
+    if (error) {
+      return res.status(403).send(error);
+    }
 
-      // 檢查 Token 黑名單
-      const isTokenInBlackList = await TokenBlackList.findOne({ token });
-      if (isTokenInBlackList) {
-        return res.status(403).send('Login timeout, please login again');
-      }
+    try {
+      // --- 若為 Apple 登入用戶，執行撤銷授權 ---
+      if (user.appleId && user.appleRefreshToken) {
+        let clientId = process.env.APPLE_CLIENT_ID;
+        if (platform === 'ios') clientId = process.env.APPLE_IOS_CLIENT_ID;
+        else if (platform === 'android') clientId = process.env.APPLE_ANDROID_CLIENT_ID;
+        else if (platform === 'web') clientId = process.env.APPLE_WEB_CLIENT_ID;
 
-      try {
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(403).send('User not found');
-        }
+        const hasEnvs = process.env.APPLE_PRIVATE_KEY_PATH
+          && process.env.APPLE_TEAM_ID
+          && process.env.APPLE_KEY_ID;
 
-        // --- 若為 Apple 登入用戶，執行撤銷授權 ---
-        if (user.appleId && user.appleRefreshToken) {
-          let clientId = process.env.APPLE_CLIENT_ID;
-          if (platform === 'ios') clientId = process.env.APPLE_IOS_CLIENT_ID;
-          else if (platform === 'android') clientId = process.env.APPLE_ANDROID_CLIENT_ID;
-          else if (platform === 'web') clientId = process.env.APPLE_WEB_CLIENT_ID;
+        if (hasEnvs) {
+          try {
+            const clientSecret = appleSignin.getClientSecret({
+              clientID: clientId,
+              teamID: process.env.APPLE_TEAM_ID,
+              keyIdentifier: process.env.APPLE_KEY_ID,
+              privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH,
+            });
 
-          const hasEnvs = process.env.APPLE_PRIVATE_KEY_PATH
-            && process.env.APPLE_TEAM_ID
-            && process.env.APPLE_KEY_ID;
-
-          if (hasEnvs) {
-            try {
-              const clientSecret = appleSignin.getClientSecret({
-                clientID: clientId,
-                teamID: process.env.APPLE_TEAM_ID,
-                keyIdentifier: process.env.APPLE_KEY_ID,
-                privateKeyPath: process.env.APPLE_PRIVATE_KEY_PATH,
-              });
-
-              await appleSignin.revokeAuthorizationToken(user.appleRefreshToken, {
-                clientID: clientId,
-                clientSecret,
-              });
-            } catch (revokeErr) {
-              console.error('Apple revoke error:', revokeErr);
-              // 記錄錯誤，但繼續刪除使用者帳號，以免卡住
-            }
-          } else {
-            console.warn('Apple App Delete: Missing environment variables for Client Secret generation. Skipping Revoke.');
+            await appleSignin.revokeAuthorizationToken(user.appleRefreshToken, {
+              clientID: clientId,
+              clientSecret,
+            });
+          } catch (revokeErr) {
+            console.error('Apple revoke error:', revokeErr);
+            // 記錄錯誤，但繼續刪除使用者帳號，以免卡住
           }
+        } else {
+          console.warn('Apple App Delete: Missing environment variables for Client Secret generation. Skipping Revoke.');
         }
-
-        // --- 執行本機資料庫使用者刪除 ---
-        await User.findByIdAndDelete(user._id);
-        await StudioSave.deleteOne({ _id: String(user._id) });
-        await removeBloodPressureData(user._id);
-
-        // 將這把 Token 加入黑名單
-        const tokenBlackList = new TokenBlackList({
-          token,
-          expiresAt: new Date(decoded.exp * 1000),
-          issuedAt: new Date(decoded.iat * 1000),
-        });
-        await tokenBlackList.save().catch((dataErr) => console.error(`Delete failure adding to blacklist - ${dataErr}`));
-
-        return res.json({
-          msg: 'User deleted successfully',
-        });
-      } catch (dbErr) {
-        console.error(dbErr);
-        return res.status(500).send('Database error during deletion');
       }
-    });
-    return null;
+
+      // --- 執行本機資料庫使用者刪除 ---
+      await User.findByIdAndDelete(user._id);
+      await StudioSave.deleteOne({ _id: String(user._id) });
+      await removeBloodPressureData(user._id);
+
+      // 將這把 Token 加入黑名單
+      const tokenBlackList = new TokenBlackList({
+        token,
+        expiresAt: new Date(decoded.exp * 1000),
+        issuedAt: new Date(decoded.iat * 1000),
+      });
+      await tokenBlackList.save().catch((dataErr) => console.error(`Delete failure adding to blacklist - ${dataErr}`));
+
+      return res.json({
+        msg: 'User deleted successfully',
+      });
+    } catch (dbErr) {
+      console.error(dbErr);
+      return res.status(500).send('Database error during deletion');
+    }
   }
   return res.status(400).send('Please login first');
 });

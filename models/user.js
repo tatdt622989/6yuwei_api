@@ -16,33 +16,21 @@ const userSchema = new mongoose.Schema({
   favoriteComponents: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Component' }],
   appleId: { type: String },
   appleRefreshToken: { type: String },
+  // When the owner of this address was confirmed, by an email link, Google or Apple
+  emailVerifiedAt: { type: Date },
+  // Set on new sign-ups only, so accounts from before this rule can still sign in
+  verificationRequired: { type: Boolean, default: false },
+  // Raising this ends every session started before, even on tokens that have not expired
+  sessionVersion: { type: Number, default: 0 },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {
   const user = this; // document
-  if (user.isModified('password')) {
+  // Removing the password also counts as a change, and there is nothing to hash then
+  if (user.isModified('password') && user.password) {
     user.password = await bcrypt.hash(user.password, 10);
   }
 });
-
-/**
- * The account for this email, created from fields when there is none.
- * An existing account stays unchanged. */
-userSchema.statics.findOrCreateByEmail = async function (email, fields) {
-  const existing = await this.findOne({ email: { $eq: email } });
-  if (existing) {
-    return existing;
-  }
-  try {
-    return await this.create({ ...fields, email });
-  } catch (err) {
-    // Another request created the same account first
-    if (err.code !== 11000) {
-      throw err;
-    }
-    return this.findOne({ email: { $eq: email } });
-  }
-};
 
 // compare password
 userSchema.methods.comparePassword = async function (password) {
@@ -67,6 +55,7 @@ userSchema.methods.generateAuthToken = function (expiresIn = process.env.TOKEN_E
   const token = jwt.sign(
     {
       userId: user.id,
+      sv: user.sessionVersion ?? 0,
     },
     process.env.SECRET_KEY,
     { expiresIn },

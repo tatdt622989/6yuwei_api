@@ -59,35 +59,52 @@ const limitDailyImageUploadsByIp = ({
 const requestWindows = new Map();
 
 /**
- * Fixed-window limit per IP, kept in memory. It resets when the process restarts.
+ * Counts one use in a fixed window, kept in memory. It resets when the process restarts.
+ * Returns false once the window is full.
+ */
+const consumeQuota = ({
+  scope, key, maxRequests, windowMs,
+}) => {
+  const now = Date.now();
+  if (requestWindows.size > 10000) {
+    requestWindows.forEach((entry, windowKey) => {
+      if (entry.resetAt <= now) requestWindows.delete(windowKey);
+    });
+  }
+
+  const windowKey = `${scope}:${key}`;
+  const entry = requestWindows.get(windowKey);
+  if (!entry || entry.resetAt <= now) {
+    requestWindows.set(windowKey, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= maxRequests) {
+    return false;
+  }
+  entry.count += 1;
+  return true;
+};
+
+/**
+ * Fixed-window limit per IP.
  * keyOf narrows the count to one value per IP, such as one account.
  */
 const limitRequestsByIp = ({
   scope, maxRequests, windowMs, keyOf,
 }) => (req, res, next) => {
-  const now = Date.now();
-  if (requestWindows.size > 10000) {
-    requestWindows.forEach((entry, key) => {
-      if (entry.resetAt <= now) requestWindows.delete(key);
-    });
-  }
-
-  const key = `${scope}:${req.clientIp || getClientIp(req)}:${keyOf ? keyOf(req) : ''}`;
-  const entry = requestWindows.get(key);
-  if (!entry || entry.resetAt <= now) {
-    requestWindows.set(key, { count: 1, resetAt: now + windowMs });
+  const key = `${req.clientIp || getClientIp(req)}:${keyOf ? keyOf(req) : ''}`;
+  if (consumeQuota({
+    scope, key, maxRequests, windowMs,
+  })) {
     return next();
   }
-  if (entry.count >= maxRequests) {
-    return res.status(429).json({ error: 'too many requests' });
-  }
-  entry.count += 1;
-  return next();
+  return res.status(429).json({ error: 'too many requests' });
 };
 
 module.exports = {
   DAILY_UPLOAD_LIMIT,
   RATE_LIMIT_MESSAGE,
+  consumeQuota,
   limitDailyImageUploadsByIp,
   limitRequestsByIp,
   removeUploadedFile,

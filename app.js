@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const socketServer = require('./sockets/socketServer');
 const authRouter = require('./routes/auth');
+const accountRouter = require('./routes/account');
 const websitesRouter = require('./routes/websites');
 const threeDCGsRouter = require('./routes/3dcgs');
 const animationsRouter = require('./routes/animations');
@@ -150,6 +151,7 @@ app.use(verifyToken);
 
 // 路由
 app.use('/', authRouter);
+app.use('/account/', accountRouter);
 app.use('/websites/', websitesRouter);
 app.use('/3dcgs/', threeDCGsRouter);
 app.use('/animations/', animationsRouter);

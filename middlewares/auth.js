@@ -1,6 +1,4 @@
-const jwt = require('jsonwebtoken');
-const TokenBlackList = require('../models/token_blackList');
-const { User } = require('../models/user');
+const { sessionOf } = require('../services/authSession');
 
 const publicRoutes = require('../config/publicRoutes');
 
@@ -16,38 +14,17 @@ async function verifyToken(req, res, next) {
     return res.status(403).send('Please login first');
   }
 
-  await jwt.verify(token, process.env.SECRET_KEY, async (err, decoded) => {
-    if (decoded) {
-      req.user = decoded;
-      const isTokenInBlackList = await TokenBlackList.findOne({ token });
-      if (isTokenInBlackList) {
-        return res.status(403).send('Login timeout, please login again');
-      }
-      // get user data from db
-      try {
-        const user = await User.findById(decoded.userId);
-        if (!user) {
-          return res.status(403).send('User not found');
-        }
-        req.user = user;
-        next();
-      } catch (error) {
-        return res.status(500).send('db error');
-      }
-    } else {
-      return res.status(403).send('Please login first');
+  try {
+    const { user, error } = await sessionOf(token);
+    if (error) {
+      return res.status(403).send(error);
     }
-    if (err) {
-      if (err.name === 'TokenExpiredError') {
-        return res.status(403).send('Login timeout, please login again');
-      }
-      return res.status(403).send('Please login first');
-    }
-
-    return null;
-  });
-
-  return null;
+    req.user = user;
+  } catch (error) {
+    console.error('session check failed:', error);
+    return res.status(500).send('db error');
+  }
+  return next();
 }
 
 /**
