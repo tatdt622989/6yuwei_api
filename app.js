@@ -23,6 +23,7 @@ const studioUpdatesRouter = require('./routes/studioUpdates');
 const bpRouter = require('./routes/bp');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
+const { rejectForeignOrigins } = require('./middlewares/originCheck');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
 
 // 獲取環境變數
@@ -145,6 +146,9 @@ app.use(attachClientIp);
 //     next();
 //   }
 // });
+
+// 擋下其他網站帶著登入 cookie 的修改請求
+app.use(rejectForeignOrigins(allowedOrigins));
 
 // 驗證token
 app.use(verifyToken);

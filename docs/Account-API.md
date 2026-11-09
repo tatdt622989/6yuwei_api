@@ -49,6 +49,10 @@
 - **重設密碼** 會同時確認信箱，並結束所有 session。
 - **結束 session** 靠 `sessionVersion`：token 帶有版本 `sv`，與帳號的版本不同就失效。沒有 `sv` 的舊 token 視為版本 0，上線不會登出任何人。
 
+## 修改請求的來源
+
+帶著登入 cookie 的修改請求，`Origin` 必須列在 `config/origins.js`，否則回 403。沒有 `Origin` 的 App 和伺服器請求不受影響。新增會用登入 cookie 修改資料的網站時，要把網址加進這份清單。
+
 ## 環境變數
 
 | 名稱 | 必要 | 說明 |
