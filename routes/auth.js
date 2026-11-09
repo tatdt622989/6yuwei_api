@@ -206,24 +206,56 @@ router.post('/login/', limitLoginByIp, limitLoginByAccount, async (req, res) => 
   return res.status(400).send(LOGIN_FAILED);
 });
 
+const sameState = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+};
+
+const MAIN_GOOGLE_FAILED = `${process.env.FRONTEND_DOMAIN}admin/login/`;
+const MAIN_GOOGLE_STATE_COOKIE = 'google_state';
+// The browser reaches both steps through the main site, which serves the callback under /api
+const mainGoogleStateCookie = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  path: '/api/google/',
+};
+
 // Google 登入
-router.get('/googleLogin/', passport.authenticate('google', { session: false, scope: ['email', 'profile'] }));
+router.get('/googleLogin/', (req, res, next) => {
+  // Ties Google's answer to this browser, so nobody can sign someone else in to their account
+  const state = crypto.randomBytes(24).toString('hex');
+  res.cookie(MAIN_GOOGLE_STATE_COOKIE, state, { ...mainGoogleStateCookie, maxAge: 10 * MINUTE });
+  passport.authenticate('google', {
+    session: false,
+    scope: ['email', 'profile'],
+    state,
+  })(req, res, next);
+});
+
+// 用 JS redirect 而非 HTTP 302，確保 Set-Cookie 能穿透 Nuxt proxy
+const leaveProxyTo = (res, url) => res.send(`<html><body><script>window.location.href='${url}'</script></body></html>`);
 
 // Google 登入 callback
-router.get('/google/callback/', passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_DOMAIN}admin/login/` }), async (req, res) => {
-  const { user } = req;
-  // jwt token
-  const token = user.generateAuthToken();
+router.get('/google/callback/', (req, res, next) => {
+  const expected = req.cookies[MAIN_GOOGLE_STATE_COOKIE];
+  res.clearCookie(MAIN_GOOGLE_STATE_COOKIE, mainGoogleStateCookie);
+  if (!sameState(req.query.state, expected)) return leaveProxyTo(res, MAIN_GOOGLE_FAILED);
 
-  res.cookie('access_token', token, {
-    httpOnly: true, // 只能在伺服器端讀取cookie
-    secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
-    sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
-  });
+  return passport.authenticate('google', { session: false }, (error, user) => {
+    if (error || !user) return leaveProxyTo(res, MAIN_GOOGLE_FAILED);
 
-  // 用 JS redirect 而非 HTTP 302，確保 Set-Cookie 能穿透 Nuxt proxy
-  const redirectUrl = `${process.env.FRONTEND_DOMAIN}admin/account/`;
-  res.send(`<html><body><script>window.location.href='${redirectUrl}'</script></body></html>`);
+    // jwt token
+    const token = user.generateAuthToken();
+
+    res.cookie('access_token', token, {
+      httpOnly: true, // 只能在伺服器端讀取cookie
+      secure: process.env.NODE_ENV === 'production', // 只在https下傳遞cookie
+      sameSite: 'lax', // 可以在同一個網域下的子網域之間傳遞cookie
+    });
+
+    return leaveProxyTo(res, `${process.env.FRONTEND_DOMAIN}admin/account/`);
+  })(req, res, next);
 });
 
 // Google sign-in for the blood pressure PWA. The session cookie has to live on this host,
@@ -237,11 +269,6 @@ const bpGoogleStateCookie = {
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
   path: '/bp/google/',
-};
-
-const sameState = (a, b) => {
-  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 };
 
 router.get('/bp/google/', limitSocialLogin, (req, res, next) => {
