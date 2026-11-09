@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { parseChange } = require('../services/bpEntries');
 const { answerOf, normalizeResult, parseModelJson } = require('../services/bpOcr');
+const { visibleReading } = require('../services/bpShare');
 
 const NOW = Date.UTC(2026, 10, 8);
 
@@ -12,6 +13,15 @@ const reading = (data = {}) => ({
   data: {
     takenAt: NOW, systolic: 128, diastolic: 82, pulse: 71, ...data,
   },
+});
+
+test('a family link shows only the time, pressure and pulse of a reading', () => {
+  const { data } = parseChange(reading({
+    arm: 'left', tags: ['coffee'], note: 'private', irregular: true,
+  }), NOW);
+  assert.deepEqual(visibleReading({ data }), {
+    takenAt: NOW, systolic: 128, diastolic: 82, pulse: 71,
+  });
 });
 
 test('keeps only the known fields of a reading', () => {

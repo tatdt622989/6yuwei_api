@@ -37,6 +37,7 @@ const publicRoutes = [
   '/google/callback/',
   '/bp/google/',
   '/bp/google/callback/',
+  '/bp/shared/',
   '/account/reset-password/',
   '/account/forgot-password/',
   '/guessai_canvas/socket.io/',

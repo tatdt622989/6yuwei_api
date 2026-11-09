@@ -1,5 +1,6 @@
 /* eslint-disable no-underscore-dangle */
 const BpEntry = require('../models/bpEntry');
+const BpShare = require('../models/bpShare');
 const { parseChange } = require('./bpEntries');
 
 const MAX_CHANGES_PER_REQUEST = 500;
@@ -106,6 +107,7 @@ const sync = async (owner, { since, after, changes }, now = Date.now()) => {
  * devices also remove their copies the next time they sync.
  */
 const eraseData = async (owner, now = Date.now()) => {
+  await BpShare.deleteOne({ owner });
   await BpEntry.updateMany(
     { owner },
     {
@@ -117,7 +119,10 @@ const eraseData = async (owner, now = Date.now()) => {
 };
 
 /** Removes every row of the account, for when the account itself is deleted. */
-const removeAccountData = (owner) => BpEntry.deleteMany({ owner: String(owner) });
+const removeAccountData = async (owner) => {
+  await BpShare.deleteOne({ owner: String(owner) });
+  await BpEntry.deleteMany({ owner: String(owner) });
+};
 
 module.exports = {
   MAX_CHANGES_PER_REQUEST,

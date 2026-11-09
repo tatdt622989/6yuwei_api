@@ -1,6 +1,6 @@
 # 血壓日誌 API
 
-`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。全部需要登入，靠 `access_token` cookie 辨識帳號，每個帳號只能碰到自己的資料。
+`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。除了 `POST /bp/shared/`，全部需要登入，靠 `access_token` cookie 辨識帳號，每個帳號只能碰到自己的資料。
 
 ## 登入
 
@@ -42,6 +42,25 @@ Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://
 ## `DELETE /bp/data/`
 
 清空帳號的日誌。內容會清除，只留下標記為已刪除的 id，讓其他裝置同步時也一起刪除。刪除帳號時整批資料會真的移除。
+
+## 家人分享連結
+
+每個帳號最多一條連結。資料庫只存 token 的 SHA-256，所以連結只在產生時回傳一次。
+
+- `GET /bp/share/`：回傳 `{ active, expiresAt }`。
+- `POST /bp/share/`：body 是 `{ "days": 7 | 30 | 90 }`，回傳 `{ token, expiresAt }`。舊連結會立刻失效。
+- `DELETE /bp/share/`：停用連結。`DELETE /bp/data/` 和刪除帳號也會停用。
+- `POST /bp/shared/`：不需要登入，body 是 `{ "token": "..." }`。token 放在 body 才不會進入存取紀錄。每個 IP 每分鐘 60 次，回應不快取。連結無效或過期時回 404。
+
+```json
+{
+  "expiresAt": 1762000000000,
+  "standard": "tw2022",
+  "readings": [{ "takenAt": 1762000000000, "systolic": 128, "diastolic": 82, "pulse": 71 }]
+}
+```
+
+只回傳最近 30 天、最多 500 筆的時間、血壓和脈搏。用藥、標籤、備註、心律不整標記和姓名都不會回傳。
 
 ## `POST /bp/ocr/`
 

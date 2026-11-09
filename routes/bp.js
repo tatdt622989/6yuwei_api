@@ -30,6 +30,9 @@ const photoUpload = multer({
 
 router.post('/sync/', limitSync, bp.sync);
 router.delete('/data/', limitSync, bp.eraseData);
+router.get('/share/', limitSync, bp.shareStatus);
+router.post('/share/', limitSync, bp.createShare);
+router.delete('/share/', limitSync, bp.stopShare);
 
 const receivePhoto = (req, res, next) => {
   photoUpload.single('image')(req, res, (error) => {

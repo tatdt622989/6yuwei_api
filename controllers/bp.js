@@ -1,5 +1,6 @@
 const bpSync = require('../services/bpSync');
 const bpOcr = require('../services/bpOcr');
+const bpShare = require('../services/bpShare');
 
 const ownerOf = (req) => req.user.id;
 
@@ -39,6 +40,37 @@ const eraseData = guard('erase', async (req, res) => {
   res.json({ ok: true });
 });
 
+/** GET /bp/share/ says whether the account has a working family link. */
+const shareStatus = guard('share status', async (req, res) => {
+  res.json(await bpShare.statusOf(ownerOf(req)));
+});
+
+/** POST /bp/share/ takes { days } and returns the link's token, once. */
+const createShare = guard('share create', async (req, res) => {
+  if (!bpShare.LINK_DAYS.includes(req.body?.days)) {
+    res.status(400).json({ error: 'invalid days' });
+    return;
+  }
+  res.json(await bpShare.createLink(ownerOf(req), req.body.days));
+});
+
+/** DELETE /bp/share/ stops the family link. */
+const stopShare = guard('share stop', async (req, res) => {
+  await bpShare.stopLink(ownerOf(req));
+  res.json({ ok: true });
+});
+
+/** POST /bp/shared/ takes { token }. It sits in the body so that it stays out of access logs. */
+const shared = guard('shared', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const diary = await bpShare.sharedDiary(req.body?.token);
+  if (!diary) {
+    res.status(404).json({ error: 'link not available' });
+    return;
+  }
+  res.json(diary);
+});
+
 const IMAGE_SIGNATURES = [
   { mimeType: 'image/jpeg', matches: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
   { mimeType: 'image/png', matches: (b) => b.subarray(0, 4).toString('hex') === '89504e47' },
@@ -72,4 +104,6 @@ const ocr = guard('ocr', async (req, res) => {
   }
 });
 
-module.exports = { eraseData, ocr, sync };
+module.exports = {
+  createShare, eraseData, ocr, shareStatus, shared, stopShare, sync,
+};

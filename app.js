@@ -21,6 +21,7 @@ const dictVocabularyRouter = require('./routes/dictVocabulary');
 const studioSaveRouter = require('./routes/studioSave');
 const studioUpdatesRouter = require('./routes/studioUpdates');
 const bpRouter = require('./routes/bp');
+const bpSharedRouter = require('./routes/bpShared');
 const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { rejectForeignOrigins } = require('./middlewares/originCheck');
@@ -167,6 +168,7 @@ app.use('/guessai_canvas/', guessAICanvasRouter);
 app.use('/reisui/codes/', reisuiRouter);
 app.use('/dict/admin/words/', dictWordsRouter);
 app.use('/studio/save/', studioSaveRouter);
+app.use('/bp/shared/', bpSharedRouter);
 app.use('/bp/', bpRouter);
 
 // other routes..
