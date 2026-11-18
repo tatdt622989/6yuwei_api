@@ -31,14 +31,17 @@ let nextRoles = ['admin'];
 
 const sign = (claims, { typ, audience = 'web', expiresIn = '5m' } = {}) => new SignJWT(claims)
   .setProtectedHeader({ alg: 'ES256', kid: 'k1', ...(typ ? { typ } : {}) })
-  .setIssuer(issuer).setAudience(audience).setIssuedAt().setExpirationTime(expiresIn)
+  .setIssuer(issuer)
+  .setAudience(audience)
+  .setIssuedAt()
+  .setExpirationTime(expiresIn)
   .sign(signingKey.privateKey);
 
-const readForm = async (req) => {
+const readForm = (req) => new Promise((resolve) => {
   let body = '';
-  for await (const chunk of req) body += chunk;
-  return new URLSearchParams(body);
-};
+  req.on('data', (chunk) => { body += chunk; });
+  req.on('end', () => resolve(new URLSearchParams(body)));
+});
 
 const startIdp = async () => {
   signingKey = await generateKeyPair('ES256', { extractable: true });
@@ -121,7 +124,9 @@ after(async () => {
   }
 });
 
-const call = (path, { token, cookie, method = 'GET', headers = {} } = {}) => fetch(`${base}${path}`, {
+const call = (path, {
+  token, cookie, method = 'GET', headers = {},
+} = {}) => fetch(`${base}${path}`, {
   method,
   redirect: 'manual',
   headers: {

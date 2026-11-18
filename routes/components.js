@@ -7,7 +7,10 @@ const router = express.Router();
 const multer = require('multer');
 
 const upload = multer();
-const { requireUser, requireAdmin } = require('../middlewares/auth');
+const { requireRole, requireUser: signedIn } = require('../middlewares/authenticate');
+
+const requireUser = signedIn();
+const requireAdmin = requireRole('admin');
 const { limitRequestsByIp } = require('../middlewares/rateLimit');
 const componentsController = require('../controllers/components');
 

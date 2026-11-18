@@ -1,6 +1,6 @@
 # 資源 API 的認證和授權 v2（SPEC-03）
 
-> 身分架構 v2 的規格。已實作：§1 的 `authenticate`、§2 的守衛（`middlewares/authenticate.js`）。尚未實作：§3 路由改用新守衛（API-03）、§4 新端點（API-05～07）。依據 `6yuwei_auth/docs/oidc.md`、`docs/Session-API.md`、`jp.6yuwei.com/docs/BLUEPRINT.md` §6。
+> 身分架構 v2，已實作（`identity-v2` 分支）。認證和守衛在 `middlewares/authenticate.js`，所有路由在 `buildApp.js` 掛載；舊的登入系統已刪除。測試：`tests/identityV2.test.js`、`tests/routes.test.js`。依據 `6yuwei_auth/docs/oidc.md`、`docs/Session-API.md`、`jp.6yuwei.com/docs/BLUEPRINT.md` §6。
 
 切換後，這個 API 不再處理密碼、不再簽發 token。它只做兩件事：辨識請求是誰（§1），以及每個路由決定誰可以用（§3）。
 
@@ -33,7 +33,9 @@
 
 原則：Bearer token 只能用在有宣告 `requireScope` 的路由。原生 App 拿到的 token 不能拿去呼叫血壓、元件等網頁功能。
 
-`config/publicRoutes.js` 刪除。沒有掛守衛的路由就是公開的，所以每個新路由都要明確決定要不要掛。測試要檢查每個非公開路由在「沒登入」時回 401。
+`config/publicRoutes.js` 已刪除。沒有掛守衛的路由就是公開的，所以每個新路由都要明確決定要不要掛，並在 `tests/routes.test.js` 的清單加一行（沒登入要回 401）。
+
+全域另掛 `requireTrustedOrigin`：用 session cookie 而且會修改資料的請求，`Origin` 要在允許清單、並帶 `X-Requested-With: 6yuwei`（Session-API §4）。沒有登入的請求（例如聯絡表單）不受影響。
 
 ## 3. 路由表
 
@@ -162,10 +164,10 @@
 
 | 項目 | 設定 |
 | --- | --- |
-| 允許的來源 | `https://6yuwei.com`、`https://www.6yuwei.com`、`https://bp.6yuwei.com`；staging 和開發環境各自的清單 |
+| 允許的來源 | 依 `WEB_APPS_ENV`（`config/origins.js`）：正式是 `https://6yuwei.com`、`https://www.6yuwei.com`、`https://ai.6yuwei.com`、`https://api.6yuwei.com`、`https://bp.6yuwei.com`；staging、開發環境各自一份 |
 | `credentials` | true |
 | 允許的標頭 | `Content-Type`、`Authorization`、`X-Requested-With` |
-| 刪除 | Guessai 的網域和 CSP 設定、`app.6yuwei.com`（確認沒有其他用途後） |
+| 已刪除 | Guessai 的網域和 CSP 設定、`app.6yuwei.com`（只為 Guessai 而設） |
 
 `/dict/vocabulary/` 維持現在的開放 CORS（不帶 cookie）。
 

@@ -1,10 +1,15 @@
 const { DictWord, DictWordHistory } = require('../models/dictWord');
+const UserProfile = require('../models/userProfile');
 const { buildWord, DictWordError, LEVELS } = require('../services/dictWords');
 const { toHiragana, romajiKey } = require('../services/dictWordKeys');
 const { escapeRegex } = require('../services/text');
 
 const LIST_FIELDS = 'readings romaji level levels pos verbClass meanings categories exampleCount formCount quality.flags revision updatedAt';
-const editorOf = (req) => ({ userId: String(req.user._id), username: req.user.username });
+/** Who made an edit, for the history. The name is the display copy kept with the profile. */
+const editorOf = async (req) => {
+  const profile = await UserProfile.findById(req.auth.sub, { display: 1 }).lean();
+  return { userId: String(req.auth.sub), username: profile?.display?.name ?? '' };
+};
 
 const guard = (handler) => async (req, res) => {
   try {
@@ -76,7 +81,7 @@ const create = guard(async (req, res) => {
     return;
   }
   const now = new Date();
-  const editor = editorOf(req);
+  const editor = await editorOf(req);
   const next = { ...word, revision: 1, createdAt: now, updatedAt: now, updatedBy: editor };
   await DictWordHistory.create({ wordId: id, action: 'create', revision: 1, editor, after: next });
   await DictWord.create(next);
@@ -97,7 +102,7 @@ const update = guard(async (req, res) => {
     await conflict(res, id);
     return;
   }
-  const editor = editorOf(req);
+  const editor = await editorOf(req);
   const next = {
     ...buildWord(req.body, id, existing),
     createdAt: existing.createdAt,
@@ -129,7 +134,7 @@ const remove = guard(async (req, res) => {
     res.status(404).json({ error: 'word not found' });
     return;
   }
-  const history = await DictWordHistory.create({ wordId: id, action: 'delete', revision, editor: editorOf(req), before: existing });
+  const history = await DictWordHistory.create({ wordId: id, action: 'delete', revision, editor: await editorOf(req), before: existing });
   const { deletedCount } = await DictWord.deleteOne({ _id: id, revision });
   if (!deletedCount) {
     await DictWordHistory.deleteOne({ _id: history._id });

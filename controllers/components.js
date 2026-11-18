@@ -34,7 +34,12 @@ const mongoose = require('mongoose');
 
 // models
 const { Component, ComponentType } = require('../models/component');
-const { User, UserTransition } = require('../models/user');
+const UserTransition = require('../models/userTransition');
+const { ensureProfile } = require('../services/userProfiles');
+const UserProfile = require('../models/userProfile');
+
+/** The signed-in account, as stored in userId fields. */
+const ownerOf = (req) => new mongoose.Types.ObjectId(req.auth.sub);
 const { getClientIp } = require('../middlewares/clientIp');
 const { sendUpload } = require('../services/uploadFiles');
 const { escapeRegex, isText } = require('../services/text');
@@ -49,14 +54,14 @@ const readTypeCover = (req, res) => sendUpload(res, 'component_type_img', req.pa
 
 // One credit pays for one AI call. The check and the charge are one database step, so parallel
 // requests cannot spend the same credit twice
-const chargeCredit = (userId) => User.findOneAndUpdate(
+const chargeCredit = (userId) => UserProfile.findOneAndUpdate(
   { _id: userId, balance: { $gte: 1 } },
   { $inc: { balance: -1 } },
   { returnDocument: 'after' },
 );
 
 const recordCharge = (req, type) => new UserTransition({
-  userId: req.user._id,
+  userId: ownerOf(req),
   amount: -1,
   type,
   ip: req.clientIp || getClientIp(req),
@@ -90,7 +95,7 @@ const generateComponent = async (req, res) => {
   }
 
   // 判斷點數是否足夠並扣除
-  if (!await chargeCredit(req.user._id)) {
+  if (!await chargeCredit(ownerOf(req))) {
     return res.status(400).send('Insufficient balance');
   }
   await recordCharge(req, 'component generate');
@@ -161,7 +166,7 @@ const generateComponent = async (req, res) => {
     });
 
     // save css to file
-    const styleFileName = `${componentType.id}-${req.user._id}-${Date.now()}.css`;
+    const styleFileName = `${componentType.id}-${req.auth.sub}-${Date.now()}.css`;
     const styleFolder = path.join(__dirname, '../uploads/css/');
     const styleFilePath = path.join(styleFolder, styleFileName);
 
@@ -180,7 +185,7 @@ const generateComponent = async (req, res) => {
 
     // save component to db
     const component = new Component({
-      userId: req.user._id,
+      userId: ownerOf(req),
       componentsType: componentType._id,
       title: promptXss,
       styleFileName,
@@ -220,12 +225,12 @@ const updateComponent = async (req, res) => {
   }
 
   // 驗證使用者是否有權限
-  if (component.userId.toString() !== req.user._id.toString()) {
+  if (component.userId.toString() !== req.auth.sub) {
     return res.status(403).send('Unauthorized');
   }
 
   // 判斷點數是否足夠並扣除
-  if (!await chargeCredit(req.user._id)) {
+  if (!await chargeCredit(ownerOf(req))) {
     return res.status(400).send('Insufficient balance');
   }
   await recordCharge(req, 'component update');
@@ -311,7 +316,7 @@ const updateComponent = async (req, res) => {
     });
 
     // save css to file
-    const newStyleFileName = `${componentType.id}-${req.user._id}-${Date.now()}.css`;
+    const newStyleFileName = `${componentType.id}-${req.auth.sub}-${Date.now()}.css`;
     const newStyleFolder = path.join(__dirname, '../uploads/css/');
     const newStyleFilePath = path.join(newStyleFolder, newStyleFileName);
 
@@ -453,10 +458,10 @@ const getUserComponents = async (req, res) => {
     }
     if (typeId) {
       query.componentsType = typeId;
-      query.userId = req.user._id;
+      query.userId = ownerOf(req);
       components = await Component.find(query).skip(skip).limit(pageSize).sort({ title: 1 });
     } else {
-      query.userId = req.user._id;
+      query.userId = ownerOf(req);
       components = await Component.find(query)
         .skip(skip)
         .limit(pageSize)
@@ -486,7 +491,7 @@ const deleteComponent = async (req, res) => {
       return res.status(404).send('Not found');
     }
     // 如果是管理員或是元件擁有者，則可以刪除
-    if (req.user.permissions.includes('admin') || component.userId.toString() === req.user._id.toString()) {
+    if (req.auth.roles.includes('admin') || component.userId.toString() === req.auth.sub) {
       await component.deleteOne();
       return res.json({
         msg: 'Successful delete',
@@ -618,7 +623,7 @@ const addFavorite = async (req, res) => {
     if (!component) {
       return res.status(404).send('Not found');
     }
-    const user = await User.findById(req.user._id);
+    const user = await ensureProfile(req.auth.sub);
     if (!user) {
       return res.status(404).send('Not found');
     }
@@ -645,7 +650,7 @@ const addFavorite = async (req, res) => {
 const deleteFavorite = async (req, res) => {
   const { id } = req.params;
   try {
-    const user = await User.findById(req.user._id);
+    const user = await ensureProfile(req.auth.sub);
     if (!user) {
       return res.status(404).send('Not found');
     }
@@ -672,7 +677,7 @@ const getFavoriteComponents = async (req, res) => {
   const pageInt = parseInt(page, 10) || 1;
   const skip = (pageInt - 1) * pageSize; // 跳過幾筆
   try {
-    const user = await User.findById(req.user._id);
+    const user = await ensureProfile(req.auth.sub);
     if (!user) {
       return res.status(404).send('Not found');
     }
@@ -699,7 +704,7 @@ const getFavoriteComponents = async (req, res) => {
 
 const getFavoriteComponentIds = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await ensureProfile(req.auth.sub);
     if (!user) {
       return res.status(404).send('Not found');
     }

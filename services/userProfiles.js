@@ -21,4 +21,11 @@ const recordSignIn = async (sub, { name, email, picture } = {}) => {
   );
 };
 
-module.exports = { INITIAL_BALANCE, recordSignIn };
+/** The profile of a signed-in account, created with the starting points when missing. */
+const ensureProfile = async (sub) => UserProfile.findOneAndUpdate(
+  { _id: sub },
+  { $setOnInsert: { balance: INITIAL_BALANCE, favoriteComponents: [] } },
+  { upsert: true, returnDocument: 'after' },
+);
+
+module.exports = { INITIAL_BALANCE, ensureProfile, recordSignIn };

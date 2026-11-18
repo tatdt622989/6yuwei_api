@@ -7,10 +7,9 @@
 - `.nvmrc`：`v24.22.1`。
 - `package.json` 與 lockfile 的根套件 `engines.node`：`>=24.22.1 <25`。
 - Dockerfile 的依賴安裝與執行階段：`node:24.22.1-bookworm-slim`。
-- `@google/genai@1.48.0` 要求 Node.js 20 以上；原本 Node 18 設定不符合此要求。
 - 相依套件版本與套件完整性鎖定維持原樣。
 
-新版 npm 需要明確允許相依套件的安裝腳本。`allowScripts` 只允許已檢查的 `bcrypt@5.1.0` 與 `protobufjs@7.5.4`；版本變更後需重新檢查此設定。bcrypt 安裝步驟負責取得或編譯原生密碼模組，不能省略。
+新版 npm 需要明確允許相依套件的安裝腳本。身分架構 v2 移除了 bcrypt（密碼改由身分中心處理）和 `@google/genai`（隨 Guessai 搬走，protobufjs 也跟著消失），目前沒有需要執行安裝腳本的套件，所以 `allowScripts` 已刪除。之後新增套件若有安裝腳本，要先檢查再加回來。
 
 使用 nvm 開發時：
 
@@ -62,3 +61,7 @@ npm ci
 - [Node.js 官方發行索引](https://nodejs.org/dist/index.json)
 - [Node 官方 Docker 標籤](https://hub.docker.com/v2/repositories/library/node/tags/24.22.1-bookworm-slim)
 - [Docker Registry 的指定標籤](https://registry-1.docker.io/v2/library/node/manifests/24.22.1-bookworm-slim)
+
+## 2026-11 身分架構 v2
+
+舊的登入（JWT、bcrypt、passport、Google 和 Apple 驗證）和 Guessai（socket.io、Gemini）已從這個 API 移除。上面 2026-10-21 的驗證紀錄提到的 bcrypt、User model、Socket.IO 不再適用；目前的檢查方式是 `npm test`（含 `tests/routes.test.js` 的路由權限表）。

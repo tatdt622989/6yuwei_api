@@ -4,8 +4,8 @@
 
 ## 權限
 
-- 登入：沿用 SSO 的 `access_token` cookie，由全域的 `verifyToken` 驗證。
-- 授權：所有路由都經過 `requireAdmin`，只有 `users.permissions` 是 `admin` 的帳號能用。
+- 登入：網頁用 Token Handler 的 session cookie；Nihongo Studio 用身分中心發的 access token（`Authorization: Bearer`，scope `studio`）。見 [Auth-v2.md](Auth-v2.md)。
+- 授權：所有路由都經過 `requireRole('admin', { scope: 'studio' })`，只有角色含 `admin` 的帳號能用。
 - 未登入回 403，已登入但不是管理者回 401。
 
 ## 環境變數

@@ -4,7 +4,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const Contact = require('../models/contact');
-const { requireAdmin } = require('../middlewares/auth');
+const { requireRole } = require('../middlewares/authenticate');
+
+const requireAdmin = requireRole('admin');
 const contactController = require('../controllers/contact');
 
 const upload = multer();

@@ -9,7 +9,7 @@ const guard = (handler) => async (req, res) => {
   }
 };
 
-const ownerOf = (req) => String(req.user._id);
+const ownerOf = (req) => String(req.auth.sub);
 
 const get = guard(async (req, res) => {
   const save = await StudioSave.findById(ownerOf(req)).lean();

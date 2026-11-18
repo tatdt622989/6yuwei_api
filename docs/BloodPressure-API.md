@@ -1,23 +1,16 @@
 # 血壓日誌 API
 
-`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。除了 `POST /bp/shared/`，全部需要登入，靠 `access_token` cookie 辨識帳號，每個帳號只能碰到自己的資料。
+`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。除了 `POST /bp/shared/`，全部需要登入，每個帳號只能碰到自己的資料。
 
 ## 登入
 
-沿用共用的 `POST /signup/`、`POST /login/`、`GET /loginStatus/`、`POST /logout/`。
+bp 沒有自己的登入後端，由這個 API 的 Token Handler 代為向身分中心 `auth.6yuwei.com` 登入，見 [Session-API.md](Session-API.md)：
 
-`/signup/` 和 `/login/` 多了選用欄位 `remember: true`：簽發 30 天的 token 和持久 cookie。不帶這個欄位時行為不變（`TOKEN_EXPIRES_IN` 的 token 加 session cookie）。PWA 需要它，否則每次關閉 App 都可能要重新登入。
+- 登入：整頁跳到 `GET /session/login?app=bp&return=<路徑>`。
+- 登入狀態：`GET /session/me`。
+- 登出：`POST /session/logout`，再整頁跳到回應裡的 `logoutUrl`。
 
-### Google 登入
-
-`GET /bp/google/` 導向 Google，登入後回到 `GET /bp/google/callback/`，在這個網域設定 30 天的 `access_token` cookie，再導回 App。失敗時導回 `/login?google=failed`。cookie 裡的 `state` 用來確認回應屬於同一個瀏覽器。
-
-Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://api.6yuwei.com/bp/google/callback/` 加進「已授權的重新導向 URI」。
-
-| 環境變數 | 預設值 | 說明 |
-|---|---|---|
-| `BP_APP_URL` | `https://bp.6yuwei.com` | 登入後導回的網址 |
-| `BP_GOOGLE_CALLBACK_URL` | `https://api.6yuwei.com/bp/google/callback/` | 告訴 Google 的回呼網址 |
+session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求都要帶 `credentials: 'include'` 和 `X-Requested-With: 6yuwei`；會修改資料的請求，`Origin` 必須是 bp 的網址（Session-API §4）。
 
 ## `POST /bp/sync/`
 

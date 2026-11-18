@@ -1,19 +1,21 @@
-const sharedFrontendOrigins = [
-  'https://app.6yuwei.com',
-];
-
-const guessAICanvasDedicatedOrigins = [
-  'https://guessai-canvas.6yuwei.com',
-];
+/*
+ * Sites allowed to call this API from a browser with credentials, and to change data with a
+ * session cookie (docs/Auth-v2.md §6). Guessai left this API with its own service, and
+ * app.6yuwei.com was only here for it.
+ */
 
 const productionOrigins = [
   'https://6yuwei.com',
+  'https://www.6yuwei.com',
   'https://ai.6yuwei.com',
   'https://api.6yuwei.com',
   'https://bp.6yuwei.com',
-  'https://www.6yuwei.com',
-  ...sharedFrontendOrigins,
-  ...guessAICanvasDedicatedOrigins,
+];
+
+const stagingOrigins = [
+  'https://stg.6yuwei.com',
+  'https://api-stg.6yuwei.com',
+  'https://bp-stg.6yuwei.com',
 ];
 
 const developmentOrigins = [
@@ -26,29 +28,18 @@ const developmentOrigins = [
   'http://localhost:5173',
 ];
 
-const getAllowedOrigins = (env) => (
-  env === 'development' ? developmentOrigins : productionOrigins
-);
-
-const guessAICanvasCspOrigins = [
-  ...sharedFrontendOrigins,
-  ...guessAICanvasDedicatedOrigins,
-];
-
-const guessAICanvasContentSecurityPolicyDirectives = {
-  defaultSrc: ["'self'", ...guessAICanvasCspOrigins],
-  scriptSrc: ["'self'", "'unsafe-inline'", ...guessAICanvasCspOrigins],
-  styleSrc: ["'self'", "'unsafe-inline'", ...guessAICanvasCspOrigins],
-  frameAncestors: ["'self'", ...guessAICanvasCspOrigins],
-  // The canvas page runs AI-written scripts, so it gets no access to this API's origin or cookies
-  sandbox: ['allow-scripts'],
+const ORIGINS = {
+  production: productionOrigins,
+  staging: stagingOrigins,
+  development: developmentOrigins,
 };
+
+/** env is WEB_APPS_ENV: production, staging or development. */
+const getAllowedOrigins = (env) => ORIGINS[env] ?? productionOrigins;
 
 module.exports = {
   developmentOrigins,
   getAllowedOrigins,
-  guessAICanvasContentSecurityPolicyDirectives,
-  guessAICanvasDedicatedOrigins,
   productionOrigins,
-  sharedFrontendOrigins,
+  stagingOrigins,
 };

@@ -7,7 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const validator = require('validator');
 const { escapeRegex } = require('../services/text');
-const { requireAdmin } = require('../middlewares/auth');
+const { requireRole } = require('../middlewares/authenticate');
+
+const requireAdmin = requireRole('admin');
 const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 
 // models
