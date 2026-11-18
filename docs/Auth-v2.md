@@ -1,6 +1,6 @@
 # 資源 API 的認證和授權 v2（SPEC-03）
 
-> 身分架構 v2 的規格，尚未實作。依據 `6yuwei_auth/docs/oidc.md`、`docs/Session-API.md`、`jp.6yuwei.com/docs/BLUEPRINT.md` §6。
+> 身分架構 v2 的規格。已實作：§1 的 `authenticate`、§2 的守衛（`middlewares/authenticate.js`）。尚未實作：§3 路由改用新守衛（API-03）、§4 新端點（API-05～07）。依據 `6yuwei_auth/docs/oidc.md`、`docs/Session-API.md`、`jp.6yuwei.com/docs/BLUEPRINT.md` §6。
 
 切換後，這個 API 不再處理密碼、不再簽發 token。它只做兩件事：辨識請求是誰（§1），以及每個路由決定誰可以用（§3）。
 
@@ -27,7 +27,7 @@
 | --- | --- | --- |
 | `requireUser()` | 有 session；或 Bearer token 而且路由有宣告 `requireScope` | 沒登入 401 `unauthenticated`；Bearer 但路由沒宣告 scope 403 `insufficient_scope` |
 | `requireRole('admin')` | 先通過 `requireUser`，而且 `roles` 含 `admin` | 403 `forbidden` |
-| `requireScope('studio')` | session 一律通過；Bearer token 的 `scope` 含 `studio` | 403 `insufficient_scope` |
+| `requireUser({ scope: 'studio' })`、`requireRole('admin', { scope: 'studio' })` | 允許 Bearer token，但 token 的 `scope` 要含 `studio`；session 一律通過 | 403 `insufficient_scope` |
 | `requireInternal('accounts.erase')` | 只接受 Bearer，`client_id` 是 `idp-internal`，`scope` 含 `accounts.erase` | 403 `forbidden` |
 | `requirePluginToken` | 沿用 `/reisui/codes/` 現有的外掛金鑰 | 不變 |
 
@@ -37,7 +37,7 @@
 
 ## 3. 路由表
 
-符號：公開 = 不需登入；使用者 = `requireUser`；管理員 = `requireRole('admin')`；`+studio` = 另加 `requireScope('studio')`，原生 App 可用。
+符號：公開 = 不需登入；使用者 = `requireUser()`；管理員 = `requireRole('admin')`；`+studio` = 守衛加上 `{ scope: 'studio' }`，原生 App 可用。
 
 ### 3.1 新增
 

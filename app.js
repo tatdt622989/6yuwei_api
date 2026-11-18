@@ -26,6 +26,7 @@ const { getAllowedOrigins } = require('./config/origins');
 const { verifyToken, requireAdmin } = require('./middlewares/auth');
 const { rejectForeignOrigins } = require('./middlewares/originCheck');
 const { attachClientIp, normalizeIp } = require('./middlewares/clientIp');
+const { createIdentityV2 } = require('./services/oidc/setup');
 
 // 獲取環境變數
 const dbURL = process.env.DB_URL;
@@ -123,7 +124,7 @@ app.use(
   cors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'credentials'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'credentials', 'X-Requested-With'],
     credentials: true,
   }),
 );
@@ -147,6 +148,14 @@ app.use(attachClientIp);
 //     next();
 //   }
 // });
+
+// Identity v2: who is calling (Bearer token or token handler session), and /session/* for the
+// sites without their own back end. Off until OIDC_ISSUER is set (docs/Auth-v2.md)
+const identityV2 = createIdentityV2();
+if (identityV2) {
+  app.use(identityV2.authenticate);
+  app.use('/session/', identityV2.sessionRouter);
+}
 
 // 擋下其他網站帶著登入 cookie 的修改請求
 app.use(rejectForeignOrigins(allowedOrigins));

@@ -1,6 +1,6 @@
 # Token Handler：網頁登入 API（SPEC-02）
 
-> 身分架構 v2 的規格，尚未實作。依據 `6yuwei_auth/docs/oidc.md`（客戶端 `web`）和 `jp.6yuwei.com/docs/BLUEPRINT.md` §5.2。
+> 身分架構 v2 的規格，已實作（`routes/session.js`、`services/webSessions.js`、`services/oidc/`）。設定 `OIDC_ISSUER` 後才啟用；沒設定時舊登入照常運作，切換時（API-08）再刪除舊登入。依據 `6yuwei_auth/docs/oidc.md`（客戶端 `web`）和 `jp.6yuwei.com/docs/BLUEPRINT.md` §5.2。
 
 6yuwei.com 和 bp.6yuwei.com 沒有自己的登入後端，由這組 API 代為向身分中心 `auth.6yuwei.com` 登入。token 留在 API 的伺服器端，瀏覽器只拿到 HttpOnly 的 session cookie。前端照這份文件實作即可，不需要看 API 的程式。
 
