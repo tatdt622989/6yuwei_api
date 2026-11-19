@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
-// One save per account. The save is stored as JSON text, so its keys never reach MongoDB as field names
+// One save per account. The save is stored as JSON text,
+// so its keys never reach MongoDB as field names
 const studioSaveSchema = new mongoose.Schema({
   _id: String,
   revision: { type: Number, required: true },

@@ -79,7 +79,11 @@ const verify = async (db) => {
   const problems = [];
   const userCount = await users.countDocuments();
   const missing = await users.aggregate([
-    { $lookup: { from: 'user_profiles', localField: '_id', foreignField: '_id', as: 'p' } },
+    {
+      $lookup: {
+        from: 'user_profiles', localField: '_id', foreignField: '_id', as: 'p',
+      },
+    },
     { $match: { p: { $size: 0 } } },
     { $count: 'n' },
   ]).toArray();

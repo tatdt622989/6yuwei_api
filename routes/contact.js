@@ -3,7 +3,6 @@ const express = require('express');
 
 const router = express.Router();
 const multer = require('multer');
-const Contact = require('../models/contact');
 const { requireRole } = require('../middlewares/authenticate');
 
 const requireAdmin = requireRole('admin');

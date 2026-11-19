@@ -20,7 +20,10 @@ const get = guard(async (req, res) => {
   res.json({ revision: save.revision, updatedAt: save.updatedAt, data: JSON.parse(save.data) });
 });
 
-/** Replaces the save. `revision` is the one the client merged with, so no device overwrites another. */
+/**
+ * Replaces the save. `revision` is the one the client merged with,
+ * so no device overwrites another.
+ */
 const put = guard(async (req, res) => {
   const { revision, data } = req.body || {};
   const isSave = data && typeof data === 'object' && !Array.isArray(data);

@@ -1,6 +1,7 @@
 /**
  * Rules for one dict_words document. These functions touch no database.
- * Editors send only the fields in buildWord; every derived field is computed here, so the two never disagree.
+ * Editors send only the fields in buildWord; every derived field is computed here,
+ * so the two never disagree.
  */
 const { toHiragana, kanaToRomaji, romajiKey } = require('./dictWordKeys');
 
@@ -24,7 +25,9 @@ class DictWordError extends Error {
 const unique = (a) => [...new Set(a)];
 const isText = (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= MAX_TEXT;
 
-/** Reads a list of text from untrusted input and records an error for a value of any other shape. */
+/**
+ * Reads a list of text from untrusted input and records an error for a value of any other shape.
+ */
 function textList(value, name, errors, { min = 0 } = {}) {
   if (!Array.isArray(value) || !value.every(isText)) {
     errors.push(`${name} must be a list of text`);
@@ -87,7 +90,10 @@ function buildForm(raw, index, knownLegacyIds, previousForms, errors) {
 /** Computes every field that follows from the edited ones. */
 function deriveWord(word) {
   const levels = LEVELS.filter((l) => word.levels.includes(l));
-  const forms = word.forms.map((f) => ({ ...f, exampleHasForm: f.examples.some((e) => e.ja.includes(f.written)) }));
+  const forms = word.forms.map((f) => ({
+    ...f,
+    exampleHasForm: f.examples.some((e) => e.ja.includes(f.written)),
+  }));
   const reviewFlags = (word.quality?.flags ?? []).filter((f) => REVIEW_FLAGS.includes(f));
   return {
     ...word,
@@ -127,8 +133,13 @@ function buildWord(input, id, existing) {
   const readings = textList(body.readings, 'readings', errors, { min: 1 }).map(toHiragana);
   readings.filter((k) => !KANA.test(k)).forEach((k) => errors.push(`readings must be kana: ${k}`));
   const previousRomaji = existing?.romaji ?? [];
-  const givenRomaji = body.romaji === undefined ? [] : textList(body.romaji, 'romaji', errors).map((r) => r.toLowerCase());
-  const followsReadings = !givenRomaji.length || (existing && readings.join() !== existing.readings.join() && givenRomaji.join() === previousRomaji.join());
+  const givenRomaji = body.romaji === undefined
+    ? []
+    : textList(body.romaji, 'romaji', errors).map((r) => r.toLowerCase());
+  // Romaji follows the readings unless the editor typed their own
+  const readingsChanged = existing && readings.join() !== existing.readings.join();
+  const romajiUntouched = givenRomaji.join() === previousRomaji.join();
+  const followsReadings = !givenRomaji.length || (readingsChanged && romajiUntouched);
   const romaji = followsReadings ? unique(readings.map(kanaToRomaji)) : givenRomaji;
   romaji.filter((r) => !ROMAJI.test(r)).forEach((r) => errors.push(`romaji must use a to z: ${r}`));
   const verbClass = body.verbClass ?? null;
@@ -136,7 +147,8 @@ function buildWord(input, id, existing) {
   const known = new Set(existing?.allLegacyIds ?? []);
   const rawForms = body.forms ?? [];
   if (!Array.isArray(rawForms)) errors.push('forms must be a list');
-  const forms = (Array.isArray(rawForms) ? rawForms : []).map((f, i) => buildForm(f, i, known, existing?.forms ?? [], errors));
+  const forms = (Array.isArray(rawForms) ? rawForms : [])
+    .map((f, i) => buildForm(f, i, known, existing?.forms ?? [], errors));
   const next = {
     _id: id,
     readings,
@@ -165,4 +177,6 @@ function buildWord(input, id, existing) {
   return deriveWord(next);
 }
 
-module.exports = { buildWord, deriveWord, DictWordError, LEVELS };
+module.exports = {
+  buildWord, deriveWord, DictWordError, LEVELS,
+};

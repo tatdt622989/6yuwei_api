@@ -371,6 +371,8 @@ router.get('/admin/category/', requireAdmin, async (req, res) => {
 });
 
 // 自訂錯誤處理中間件
+// Express needs all four arguments to treat this as an error handler
+// eslint-disable-next-line no-unused-vars
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     // Multer 錯誤處理

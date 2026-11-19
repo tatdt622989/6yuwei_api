@@ -144,9 +144,6 @@ const generateComponent = async (req, res) => {
       tool_choice: { type: 'function', function: { name: 'generate_component' } },
     });
 
-    // write response to log
-    console.log(JSON.stringify(response));
-
     let content = response.choices[0]?.message?.tool_calls[0]?.function.arguments;
 
     if (!content) {
@@ -293,9 +290,6 @@ const updateComponent = async (req, res) => {
       ],
       tool_choice: { type: 'function', function: { name: 'generate_component' } },
     });
-
-    // write response to log
-    console.log(JSON.stringify(response));
 
     let content = response.choices[0]?.message?.tool_calls[0]?.function.arguments;
 
