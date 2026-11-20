@@ -6,17 +6,17 @@
 
 ## 1. 辨識身分：`authenticate` 中介層
 
-全域掛在所有路由之前（`/dict/vocabulary/`、`/studio/updates/` 也一樣，它們只是不要求登入）。依序檢查：
+掛在 `buildApp.js` 的路由之前，所有路由都經過它。只有 `/dict/vocabulary/` 和 `/studio/updates/` 例外：這兩組掛在它和共用 CORS 之前，完全不辨識身分（Nihongo Tango 和 Nihongo Studio 呼叫時不帶 cookie 也不帶 token）。依序檢查：
 
 1. **Bearer token**（`Authorization: Bearer <JWT>`）
    - 用身分中心的 JWKS 驗證簽章（ES256），金鑰快取 10 分鐘，遇到不認得的 `kid` 重新抓。
    - 檢查 `iss` 是 `OIDC_ISSUER`、`aud` 是 `API_RESOURCE`（`https://api.6yuwei.com`）、`typ` 是 `at+jwt`、`exp` 未過期（容許 30 秒誤差）。
    - 任何一項不符就回 401 `invalid_token`，不會退回去用 cookie。
    - 通過：`req.auth = { sub, roles, scopes, clientId, via: 'bearer' }`。
-2. **session cookie**（`__Host-6y_sid`）
+2. **session cookie**（`__Host-6y_sid`；`WEB_APPS_ENV=development` 時是 `6y_sid`）
    - 查 `web_sessions`，照 `Session-API.md` §5 處理過期和定期確認。
    - 找不到：清除 cookie，當成訪客。
-   - 找到：`req.auth = { sub, roles, scopes: null, clientId: 'web', via: 'session' }`。
+   - 找到：`req.auth = { sub, roles, scopes: null, clientId: 'web', via: 'session', session }`；cookie 超過 24 小時沒重設就重設一次，延長 Max-Age。
 3. 兩者都沒有：`req.auth = null`（訪客）。
 
 `req.user`（舊的使用者文件）整個刪除。需要點數、收藏的地方改查 `user_profiles`（`services/userProfiles.js`）。
@@ -25,13 +25,13 @@
 
 | 守衛 | 通過條件 | 不通過 |
 | --- | --- | --- |
-| `requireUser()` | 有 session；或 Bearer token 而且路由有宣告 `requireScope` | 沒登入 401 `unauthenticated`；Bearer 但路由沒宣告 scope 403 `insufficient_scope` |
-| `requireRole('admin')` | 先通過 `requireUser`，而且 `roles` 含 `admin` | 403 `forbidden` |
-| `requireUser({ scope: 'studio' })`、`requireRole('admin', { scope: 'studio' })` | 允許 Bearer token，但 token 的 `scope` 要含 `studio`；session 一律通過 | 403 `insufficient_scope` |
-| `requireInternal('accounts.erase')` | 只接受 Bearer，`client_id` 是 `idp-internal`，`scope` 含 `accounts.erase` | 403 `forbidden` |
+| `requireUser()` | 有 session | 沒登入 401 `unauthenticated`；用 Bearer token 403 `insufficient_scope` |
+| `requireRole('admin')` | 先通過 `requireUser`，而且 `roles` 含 `admin` | 沒登入 401 `unauthenticated`；角色不符 403 `forbidden` |
+| `requireUser({ scope: 'studio' })`、`requireRole('admin', { scope: 'studio' })` | 允許 Bearer token，但 token 的 `scope` 要含 `studio`，而且不是 `idp-internal` 的 token；session 一律通過 | 403 `insufficient_scope` |
+| `requireInternal('accounts.erase')` | 只接受 Bearer，`client_id` 是 `idp-internal`，`scope` 含 `accounts.erase` | 沒帶 token 401 `unauthenticated`；其他 403 `forbidden` |
 | `requirePluginToken` | 沿用 `/reisui/codes/` 現有的外掛金鑰 | 不變 |
 
-原則：Bearer token 只能用在有宣告 `requireScope` 的路由。原生 App 拿到的 token 不能拿去呼叫血壓、元件等網頁功能。
+原則：Bearer token 只能用在守衛有宣告 `scope` 的路由（`requireUser({ scope })`、`requireRole(role, { scope })`）。原生 App 拿到的 token 不能拿去呼叫血壓、元件等網頁功能。
 
 `config/publicRoutes.js` 已刪除。沒有掛守衛的路由就是公開的，所以每個新路由都要明確決定要不要掛，並在 `tests/routes.test.js` 的清單加一行（沒登入要回 401）。
 
@@ -124,7 +124,7 @@
 }
 ```
 
-`GET /admin/profiles/:sub`：單一帳號，加上最近 50 筆 `UserTransition`。
+`GET /admin/profiles/:sub`：單一帳號，加上最近 50 筆 `UserTransition`（欄位 `transitions`）。`sub` 格式不對或找不到帳號回 404 `not_found`。
 
 `POST /admin/profiles/:sub/balance`
 
@@ -132,13 +132,15 @@
 { "delta": 10, "reason": "活動贈點" }
 ```
 
-- `delta` 是非 0 的整數，絕對值不超過 10000；調整後不能小於 0，否則 400 `invalid_balance`。
-- 用一次 `findOneAndUpdate` 加減，寫一筆 `UserTransition`（`type: 'admin_adjust'`、`amount: delta`、`reason`、`actor: 管理員的 sub`）。
+- `delta` 是非 0 的整數，絕對值不超過 10000，否則 400 `invalid_request`。
+- 調整後不能小於 0，否則 400 `invalid_balance`。找不到帳號回 404 `not_found`。
+- `reason` 最多 200 字。
+- 用一次 `findOneAndUpdate` 加減，寫一筆 `UserTransition`（`type: 'admin_adjust'`、`amount: delta`、`reason`、`actor: 管理員的 sub`、`ip`）。
 - 回傳 `{ "sub": "...", "balance": 38 }`。
 
 ### 4.3 `POST /internal/accounts/:sub/erase`
 
-身分中心刪除帳號時呼叫。可以重複呼叫，結果相同。
+身分中心刪除帳號時呼叫。可以重複呼叫，結果相同。`sub` 格式不對回 400 `invalid_request`。
 
 刪除該 `sub` 的：`bp_entries`、`bp_shares`、`studio_saves`、`components`（他建立的）、`usertransitions`、`user_profiles`、`web_sessions`。
 
@@ -164,7 +166,7 @@
 
 | 項目 | 設定 |
 | --- | --- |
-| 允許的來源 | 依 `WEB_APPS_ENV`（`config/origins.js`）：正式是 `https://6yuwei.com`、`https://www.6yuwei.com`、`https://ai.6yuwei.com`、`https://api.6yuwei.com`、`https://bp.6yuwei.com`；staging、開發環境各自一份 |
+| 允許的來源 | 依 `WEB_APPS_ENV`（`config/origins.js`）：正式是 `https://6yuwei.com`、`https://www.6yuwei.com`、`https://ai.6yuwei.com`、`https://api.6yuwei.com`、`https://bp.6yuwei.com`；開發環境另一份（程式也有 staging 的清單，不使用） |
 | `credentials` | true |
 | 允許的標頭 | `Content-Type`、`Authorization`、`X-Requested-With` |
 | 已刪除 | Guessai 的網域和 CSP 設定、`app.6yuwei.com`（只為 Guessai 而設） |
@@ -178,5 +180,7 @@
 | `OIDC_ISSUER` | `https://auth.6yuwei.com` |
 | `API_RESOURCE` | `https://api.6yuwei.com`，access token 的 `aud` |
 | `OIDC_CLIENT_WEB_SECRET`、`SESSION_TOKEN_KEY`、`WEB_APPS_ENV` | Token Handler 用，見 Session-API |
+
+全部必填。少了 `OIDC_ISSUER`，或設了 `OIDC_ISSUER` 但少了其他任何一個，API 啟動時印出 `configuration error:` 並停止（`app.js`、`services/oidc/setup.js`）。
 
 刪除的環境變數見 `jp.6yuwei.com/docs/BLUEPRINT.md` §9.1。

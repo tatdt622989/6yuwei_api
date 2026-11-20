@@ -1,6 +1,6 @@
 # Token Handler：網頁登入 API（SPEC-02）
 
-> 身分架構 v2 的規格，已實作（`routes/session.js`、`services/webSessions.js`、`services/oidc/`）。設定 `OIDC_ISSUER` 後才啟用；沒設定時舊登入照常運作，切換時（API-08）再刪除舊登入。依據 `6yuwei_auth/docs/oidc.md`（客戶端 `web`）和 `jp.6yuwei.com/docs/BLUEPRINT.md` §5.2。
+> 身分架構 v2 的規格，已實作（`routes/session.js`、`services/webSessions.js`、`services/oidc/`）。舊的登入已經刪除，所以 §7 的環境變數都是必填，少一個 API 就不啟動。依據 `6yuwei_auth/docs/oidc.md`（客戶端 `web`）和 `jp.6yuwei.com/docs/BLUEPRINT.md` §5.2。
 
 6yuwei.com 和 bp.6yuwei.com 沒有自己的登入後端，由這組 API 代為向身分中心 `auth.6yuwei.com` 登入。token 留在 API 的伺服器端，瀏覽器只拿到 HttpOnly 的 session cookie。前端照這份文件實作即可，不需要看 API 的程式。
 
@@ -11,7 +11,7 @@
 | `main` | `https://6yuwei.com` | 經由 Nuxt 的 `/api/**` 代理：`https://6yuwei.com/api/session/...` | `https://6yuwei.com/api/session/callback` | `https://6yuwei.com<return>` |
 | `bp` | `https://bp.6yuwei.com` | 直接：`https://api.6yuwei.com/session/...` | `https://api.6yuwei.com/session/callback` | `https://bp.6yuwei.com<return>` |
 
-staging：`main` 是 `https://stg.6yuwei.com`（導回 `https://stg.6yuwei.com/api/session/callback`），`bp` 是 `https://bp-stg.6yuwei.com`，API 是 `https://api-stg.6yuwei.com`。
+程式裡也有 staging 的清單（`main` 是 `https://stg.6yuwei.com`，`bp` 是 `https://bp-stg.6yuwei.com`，API 是 `https://api-stg.6yuwei.com`），但 2026-11-20 決定不建 staging，不使用。
 
 清單寫在 `config/webApps.js`，用環境變數 `WEB_APPS_ENV`（`production`、`staging`、`development`）選擇。`app` 不在清單裡就回 400。
 
@@ -23,7 +23,7 @@ staging：`main` 是 `https://stg.6yuwei.com`（導回 `https://stg.6yuwei.com/a
 | `__Host-6y_login` | 登入過程的 `state`（10 分鐘） | HttpOnly、Secure、SameSite=Lax、Path=/、Max-Age 600 秒 |
 
 - cookie 落在瀏覽器看到的網域：`main` 經由代理，所以落在 `6yuwei.com`；`bp` 落在 `api.6yuwei.com`。
-- 本機開發是 http，不能用 `__Host-` 前綴，改用 `6y_sid`、`6y_login`，並且不加 Secure（`NODE_ENV=development` 時）。
+- 本機開發是 http，不能用 `__Host-` 前綴，改用 `6y_sid`、`6y_login`，並且不加 Secure（`WEB_APPS_ENV=development` 時）。
 - session cookie 最多每 24 小時重新設定一次，延長 Max-Age。
 
 ## 3. 端點
@@ -39,17 +39,19 @@ staging：`main` 是 `https://stg.6yuwei.com`（導回 `https://stg.6yuwei.com/a
 
 伺服器的動作：
 
-1. 產生 `state`（32 bytes）、`nonce`（32 bytes）、PKCE `code_verifier`（32 bytes）。
-2. 存進 `web_login_states`（10 分鐘）。
+1. 產生 `state`、`nonce`、PKCE `code_verifier`（各 32 bytes 的隨機值）。`state` 的開頭加上 `app` 和一個點（例如 `bp.<隨機值>`），登入過期時才知道要導回哪個網站。
+2. 存進 `web_login_states`（10 分鐘），只存 `state` 的雜湊。
 3. 設定 `__Host-6y_login=<state>`。
 4. 302 到身分中心的授權端點，參數：`client_id=web`、`response_type=code`、`scope=openid email profile roles offline_access`、`prompt=consent`、`redirect_uri`（依 `app`）、`state`、`nonce`、`code_challenge`、`code_challenge_method=S256`。
+
+`app` 不在清單裡回 400 `{ "error": "invalid_request" }`。連不到身分中心時回 503 和文字「登入服務暫時無法使用，請稍後再試。」
 
 ### 3.2 `GET /session/callback`
 
 身分中心導回這裡，前端不會直接呼叫。
 
 1. 核對 query 的 `state` 和 `__Host-6y_login` 相同，並在 `web_login_states` 找得到；找到就刪除（只能用一次）。
-2. 核對 query 的 `iss` 是身分中心。
+2. query 有 `iss` 時，核對它是身分中心（身分中心一律會帶）。
 3. 用 `code` 和 `code_verifier` 換 token。
 4. 驗證 ID token：簽章、`iss`、`aud=web`、`exp`、`nonce`。
 5. 更新 `user_profiles`：沒有就建立（`balance: 30`）；用 ID token 更新 `display`。
@@ -57,7 +59,7 @@ staging：`main` 是 `https://stg.6yuwei.com`（導回 `https://stg.6yuwei.com/a
 7. 設定 `__Host-6y_sid`，清除 `__Host-6y_login`。
 8. 302 到該網站的 `<return>`。
 
-失敗（使用者取消、`state` 不符、換 token 失敗、ID token 無效）：清除 `__Host-6y_login`，302 到該網站的 `/?login_error=<代碼>`。
+失敗（使用者取消、`state` 不符、換 token 失敗、ID token 無效、沒有拿到 refresh token）：清除 `__Host-6y_login`，302 到該網站的 `/?login_error=<代碼>`。
 
 | 代碼 | 意思 |
 | --- | --- |
@@ -109,7 +111,7 @@ staging：`main` 是 `https://stg.6yuwei.com`（導回 `https://stg.6yuwei.com/a
 
 用 session cookie 認證、而且會修改資料的請求（POST、PUT、PATCH、DELETE），必須同時符合：
 
-1. `Origin` 在允許清單（各網站的網址，見 §1；staging 和開發環境另有清單）。
+1. `Origin` 在允許清單：`config/origins.js`，依 `WEB_APPS_ENV` 選擇（[Auth-v2.md](Auth-v2.md) §6）。`POST /session/logout` 比較嚴格，不論有沒有登入都檢查，而且只接受 §1 的網站。
 2. 帶標頭 `X-Requested-With: 6yuwei`。這個自訂標頭讓跨站請求一定要先通過 CORS 預檢。
 
 不符合就回 403：`{ "error": "origin_not_allowed" }`。
@@ -156,4 +158,7 @@ location.href = logoutUrl;
 | `OIDC_ISSUER` | `https://auth.6yuwei.com` |
 | `OIDC_CLIENT_WEB_SECRET` | 客戶端 `web` 的 secret |
 | `SESSION_TOKEN_KEY` | 加密 refresh token 的金鑰，32 bytes，base64 |
-| `WEB_APPS_ENV` | `production`、`staging` 或 `development`，決定 §1 的網站清單 |
+| `WEB_APPS_ENV` | `production` 或 `development`（程式也接受 `staging`，不使用），決定 §1 的網站清單、§4 的允許清單和 cookie 名稱 |
+| `API_RESOURCE` | `https://api.6yuwei.com`，見 [Auth-v2.md](Auth-v2.md) §7 |
+
+五個都必填。少了 `OIDC_ISSUER`，或設了 `OIDC_ISSUER` 但少了其他任何一個，API 啟動時印出 `configuration error:` 並停止。

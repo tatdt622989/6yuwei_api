@@ -10,7 +10,7 @@ bp 沒有自己的登入後端，由這個 API 的 Token Handler 代為向身分
 - 登入狀態：`GET /session/me`。
 - 登出：`POST /session/logout`，再整頁跳到回應裡的 `logoutUrl`。
 
-session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求都要帶 `credentials: 'include'` 和 `X-Requested-With: 6yuwei`；會修改資料的請求，`Origin` 必須是 bp 的網址（Session-API §4）。
+session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求都要帶 `credentials: 'include'` 和 `X-Requested-With: 6yuwei`；會修改資料的請求，`Origin` 必須在允許清單裡（bp 的網址在清單裡，見 Session-API §4）。沒登入回 401 `unauthenticated`。
 
 ## `POST /bp/sync/`
 
@@ -57,7 +57,7 @@ session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求�
 
 ## `POST /bp/ocr/`
 
-只有管理員帳號（`permissions: admin`）可以呼叫，其他帳號回 401。一般使用者是在瀏覽器用自己的 Claude 金鑰直接呼叫 Anthropic，金鑰和照片都不會經過這台伺服器。
+只有角色含 `admin` 的帳號可以呼叫：沒登入回 401 `unauthenticated`，其他帳號回 403 `forbidden`。一般使用者是在瀏覽器用自己的 Claude 金鑰直接呼叫 Anthropic，金鑰和照片都不會經過這台伺服器。
 
 multipart 欄位 `image`（jpeg、png、webp，最多 4 MB）。照片只存在這次請求的記憶體中，不寫入硬碟或資料庫，但會送到 Anthropic 辨識。每個帳號每小時 40 次。
 
