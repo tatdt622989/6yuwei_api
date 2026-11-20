@@ -33,7 +33,7 @@ test('profileOf keeps points, favorites and a display copy', () => {
   assert.equal(profileOf({}).balance, 30);
 });
 
-test('every user gets a profile; running again overwrites what sign-ins created', { skip: !url }, async () => {
+test('every user gets a profile once; points that change after the move stay', { skip: !url }, async () => {
   const users = Array.from({ length: 1200 }, (_, i) => ({
     _id: new mongoose.Types.ObjectId(), username: `u${i}`, email: `u${i}@example.com`, balance: i % 50, favoriteComponents: [],
   }));
@@ -41,15 +41,26 @@ test('every user gets a profile; running again overwrites what sign-ins created'
   // A sign-in before the migration created a profile with the default points
   await db.collection('user_profiles').insertOne({ _id: users[7]._id, balance: 30, favoriteComponents: [] });
 
-  assert.deepEqual(await migrate(db, { dryRun: true }), { users: 1200, written: 0 });
+  const dry = await migrate(db, { dryRun: true });
+  assert.equal(dry.wouldWrite, 1200);
+  assert.equal(dry.written, 0);
   assert.equal(await db.collection('user_profiles').countDocuments(), 1);
 
-  await migrate(db);
-  assert.equal((await db.collection('user_profiles').findOne({ _id: users[7]._id })).balance, 7);
-  const report = await verify(db);
+  const first = await migrate(db);
+  assert.equal(first.writtenIds.length, 1200);
+  assert.equal((await db.collection('user_profiles').findOne({ _id: users[7]._id })).balance, 7, 'the old points replace the default');
+  const report = await verify(db, first.writtenIds);
   assert.deepEqual(report.problems, []);
   assert.equal(report.profiles, 1200);
 
-  await migrate(db);
+  // Points spent after the move: running again leaves them
+  await db.collection('user_profiles').updateOne({ _id: users[9]._id }, { $set: { balance: 2 } });
+  const second = await migrate(db);
+  assert.equal(second.written, 0);
+  assert.equal(second.alreadyMigrated, 1200);
+  assert.equal((await db.collection('user_profiles').findOne({ _id: users[9]._id })).balance, 2);
   assert.equal(await db.collection('user_profiles').countDocuments(), 1200);
+  assert.deepEqual((await verify(db, second.writtenIds)).problems, []);
+  // The old data is only read
+  assert.equal((await db.collection('users').findOne({ _id: users[9]._id })).balance, 9);
 });
