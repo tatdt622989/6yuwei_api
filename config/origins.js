@@ -12,12 +12,6 @@ const productionOrigins = [
   'https://bp.6yuwei.com',
 ];
 
-const stagingOrigins = [
-  'https://stg.6yuwei.com',
-  'https://api-stg.6yuwei.com',
-  'https://bp-stg.6yuwei.com',
-];
-
 const developmentOrigins = [
   'http://localhost:3000',
   'http://localhost:8888',
@@ -30,16 +24,10 @@ const developmentOrigins = [
 
 const ORIGINS = {
   production: productionOrigins,
-  staging: stagingOrigins,
   development: developmentOrigins,
 };
 
-/** env is WEB_APPS_ENV: production, staging or development. */
-const getAllowedOrigins = (env) => ORIGINS[env] ?? productionOrigins;
+/** env is WEB_APPS_ENV: production or development (setup.js refuses anything else). */
+const getAllowedOrigins = (env) => ORIGINS[env];
 
-module.exports = {
-  developmentOrigins,
-  getAllowedOrigins,
-  productionOrigins,
-  stagingOrigins,
-};
+module.exports = { getAllowedOrigins };

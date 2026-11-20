@@ -11,9 +11,7 @@
 | `main` | `https://6yuwei.com` | 經由 Nuxt 的 `/api/**` 代理：`https://6yuwei.com/api/session/...` | `https://6yuwei.com/api/session/callback` | `https://6yuwei.com<return>` |
 | `bp` | `https://bp.6yuwei.com` | 直接：`https://api.6yuwei.com/session/...` | `https://api.6yuwei.com/session/callback` | `https://bp.6yuwei.com<return>` |
 
-程式裡也有 staging 的清單（`main` 是 `https://stg.6yuwei.com`，`bp` 是 `https://bp-stg.6yuwei.com`，API 是 `https://api-stg.6yuwei.com`），但 2026-11-20 決定不建 staging，不使用。
-
-清單寫在 `config/webApps.js`，用環境變數 `WEB_APPS_ENV`（`production`、`staging`、`development`）選擇。`app` 不在清單裡就回 400。
+清單寫在 `config/webApps.js`，用環境變數 `WEB_APPS_ENV`（`production` 或 `development`）選擇。`app` 不在清單裡就回 400。
 
 ## 2. cookie
 
@@ -158,7 +156,7 @@ location.href = logoutUrl;
 | `OIDC_ISSUER` | `https://auth.6yuwei.com` |
 | `OIDC_CLIENT_WEB_SECRET` | 客戶端 `web` 的 secret |
 | `SESSION_TOKEN_KEY` | 加密 refresh token 的金鑰，32 bytes，base64 |
-| `WEB_APPS_ENV` | `production` 或 `development`（程式也接受 `staging`，不使用），決定 §1 的網站清單、§4 的允許清單和 cookie 名稱 |
+| `WEB_APPS_ENV` | `production` 或 `development`，決定 §1 的網站清單、§4 的允許清單和 cookie 名稱 |
 | `API_RESOURCE` | `https://api.6yuwei.com`，見 [Auth-v2.md](Auth-v2.md) §7 |
 
 五個都必填。少了 `OIDC_ISSUER`，或設了 `OIDC_ISSUER` 但少了其他任何一個，API 啟動時印出 `configuration error:` 並停止。

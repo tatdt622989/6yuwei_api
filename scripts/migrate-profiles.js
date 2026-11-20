@@ -6,8 +6,8 @@
  *   node scripts/migrate-profiles.js             write, then verify
  *
  * Reads DB_URL and DB_NAME like app.js. Safe to run again: every profile is overwritten from
- * `users`, which wins over profiles created by sign-ins on staging before the run. `users` is
- * only read; it is dropped a week after the cut-over (MIG-06).
+ * `users`, which wins over profiles created by sign-ins before the run. `users` is only read,
+ * and nothing deletes it.
  */
 /* eslint-disable no-underscore-dangle */
 require('dotenv').config({ quiet: true });

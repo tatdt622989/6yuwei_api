@@ -46,10 +46,6 @@ const { escapeRegex, isText } = require('../services/text');
 
 const readCSSFile = (req, res) => sendUpload(res, 'css', req.params.filename);
 
-const readJavascriptFile = (req, res) => sendUpload(res, 'js', req.params.filename);
-
-const readScreenshot = (req, res) => sendUpload(res, 'component_img', req.params.filename);
-
 const readTypeCover = (req, res) => sendUpload(res, 'component_type_img', req.params.filename);
 
 // One credit pays for one AI call. The check and the charge are one database step, so parallel
@@ -359,16 +355,6 @@ const getComponent = async (req, res) => {
       return res.status(404).send('Not found');
     }
 
-    // 暫時將所有css資料存入資料庫
-    // if (!component.style) {
-    //   // 取得CSS檔案
-    //   const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
-    //   const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' })
-    // .then((obj) => obj).catch(() => '');
-    //   component.style = data;
-    //   await component.save();
-    // }
-
     // 取得CSS檔案
     const styleFilePath = path.join(__dirname, `../uploads/css/${component.styleFileName}`);
     const data = await fs.promises.readFile(styleFilePath, { encoding: 'utf8' }).then((obj) => obj).catch(() => '');
@@ -588,25 +574,6 @@ const getIframeHTML = async (req, res) => {
   }
 };
 
-// const uploadScreenshot = async (req, res) => {
-//   const { componentId } = req.body;
-//   if (!componentId || !req.file) {
-//     return res.status(400).send('Invalid request');
-//   }
-
-//   // write filename to db
-//   try {
-//     await Component.updateOne(
-//       { _id: componentId },
-//       { $set: { screenshotFileName: req.file.filename } },
-//     );
-//     return res.json({ filename: req.file.filename });
-//   } catch (err) {
-//     console.log(err);
-//     return res.status(500).send('error');
-//   }
-// };
-
 const addFavorite = async (req, res) => {
   const { componentId } = req.body;
   if (!componentId) {
@@ -714,8 +681,6 @@ const getFavoriteComponentIds = async (req, res) => {
 
 module.exports = {
   readCSSFile,
-  readJavascriptFile,
-  readScreenshot,
   readTypeCover,
   generateComponent,
   updateComponent,
@@ -725,7 +690,6 @@ module.exports = {
   getComponent,
   getComponents,
   getUserComponents,
-  // uploadScreenshot,
   addFavorite,
   deleteFavorite,
   getFavoriteComponents,

@@ -38,7 +38,7 @@ test('every user gets a profile; running again overwrites what sign-ins created'
     _id: new mongoose.Types.ObjectId(), username: `u${i}`, email: `u${i}@example.com`, balance: i % 50, favoriteComponents: [],
   }));
   await db.collection('users').insertMany(users);
-  // A sign-in on staging before the migration created a profile with the default points
+  // A sign-in before the migration created a profile with the default points
   await db.collection('user_profiles').insertOne({ _id: users[7]._id, balance: 30, favoriteComponents: [] });
 
   assert.deepEqual(await migrate(db, { dryRun: true }), { users: 1200, written: 0 });

@@ -166,7 +166,7 @@
 
 | 項目 | 設定 |
 | --- | --- |
-| 允許的來源 | 依 `WEB_APPS_ENV`（`config/origins.js`）：正式是 `https://6yuwei.com`、`https://www.6yuwei.com`、`https://ai.6yuwei.com`、`https://api.6yuwei.com`、`https://bp.6yuwei.com`；開發環境另一份（程式也有 staging 的清單，不使用） |
+| 允許的來源 | 依 `WEB_APPS_ENV`（`config/origins.js`）：正式是 `https://6yuwei.com`、`https://www.6yuwei.com`、`https://ai.6yuwei.com`、`https://api.6yuwei.com`、`https://bp.6yuwei.com`；開發環境另一份 |
 | `credentials` | true |
 | 允許的標頭 | `Content-Type`、`Authorization`、`X-Requested-With` |
 | 已刪除 | Guessai 的網域和 CSP 設定、`app.6yuwei.com`（只為 Guessai 而設） |
