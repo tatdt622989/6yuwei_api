@@ -34,7 +34,9 @@ session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求�
 
 ## `DELETE /bp/data/`
 
-清空帳號的日誌。內容會清除，只留下標記為已刪除的 id，讓其他裝置同步時也一起刪除。刪除帳號時整批資料會真的移除。
+清空帳號的日誌。內容會清除，只留下標記為已刪除的 id，讓其他裝置同步時也一起刪除。
+
+在身分中心刪除帳號時，血壓資料不動（2026-11-22 決定，見 [Auth-v2.md](Auth-v2.md) §4.3）。
 
 ## 家人分享連結
 
@@ -42,7 +44,7 @@ session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求�
 
 - `GET /bp/share/`：回傳 `{ active, expiresAt }`。
 - `POST /bp/share/`：body 是 `{ "days": 7 | 30 | 90 }`，回傳 `{ token, expiresAt }`。舊連結會立刻失效。
-- `DELETE /bp/share/`：停用連結。`DELETE /bp/data/` 和刪除帳號也會停用。
+- `DELETE /bp/share/`：停用連結。`DELETE /bp/data/` 也會停用。刪除帳號不會停用連結，連結到期前家人仍看得到紀錄。
 - `POST /bp/shared/`：不需要登入，body 是 `{ "token": "..." }`。token 放在 body 才不會進入存取紀錄。每個 IP 每分鐘 60 次，回應不快取。連結無效或過期時回 404。
 
 ```json

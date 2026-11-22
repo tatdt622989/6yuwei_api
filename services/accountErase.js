@@ -9,7 +9,7 @@ const { UPLOADS_DIR } = require('./uploadFiles');
  * - the Nihongo Studio save, the only app data that must go with the account
  * - the account itself as the old sign-in kept it: its record in the old `users` collection, its
  *   one-time links in `account_tokens` and its old profile pictures (uploads/user/<id>). Other
- *   accounts' old records stay (jp.6yuwei.com docs/data.md §5); this one goes, so its address and
+ *   accounts' old records stay (6yuwei_auth docs/data.md §5); this one goes, so its address and
  *   password hash are really gone and moving the old accounts again cannot bring it back.
  *
  * Everything else (blood pressure records, components, points, favorites) stays as it is

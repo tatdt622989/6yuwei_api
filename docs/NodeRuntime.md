@@ -6,7 +6,7 @@
 
 - `.nvmrc`：`v24.22.1`。
 - `package.json` 與 lockfile 的根套件 `engines.node`：`>=24.22.1 <25`。
-- Dockerfile 的依賴安裝與執行階段：`node:24.22.1-bookworm-slim`。
+- Dockerfile 的依賴安裝與執行階段：`node:24.22.1-alpine`（2026-11-07 起；下面 2026-10-21 的驗證紀錄用的是當時的 `bookworm-slim`）。
 - 相依套件版本與套件完整性鎖定維持原樣。
 
 新版 npm 需要明確允許相依套件的安裝腳本。身分架構 v2 移除了 bcrypt（密碼改由身分中心處理）和 `@google/genai`（隨 Guessai 搬走，protobufjs 也跟著消失），目前沒有需要執行安裝腳本的套件，所以 `allowScripts` 已刪除。之後新增套件若有安裝腳本，要先檢查再加回來。
@@ -64,4 +64,4 @@ npm ci
 
 ## 2026-11 身分架構 v2
 
-舊的登入（JWT、bcrypt、passport、Google 和 Apple 驗證）和 Guessai（socket.io、Gemini）已從這個 API 移除。上面 2026-10-21 的驗證紀錄提到的 bcrypt、User model、Socket.IO 不再適用；目前的檢查方式是 `npm test`（含 `tests/routes.test.js` 的路由權限表）。
+舊的登入（JWT、bcrypt、passport、Google 和 Apple 驗證）和 Guessai（socket.io、Gemini）已從這個 API 移除。上面 2026-10-21 的驗證紀錄提到的 bcrypt、User model、Socket.IO、Google 和 Apple 登入都不再適用；目前的檢查方式是 `npm test`（含 `tests/routes.test.js` 的路由權限表），部署後確認 `/health/`。

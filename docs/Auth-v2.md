@@ -145,9 +145,11 @@
 刪除該 `sub` 的：
 
 - `studio_saves`：Nihongo Studio 的存檔。只有這個 App 的資料跟著帳號刪除。
-- 舊系統留下的帳號：`users` 那一筆、`account_tokens`、舊頭像資料夾 `uploads/user/<sub>`（`pictures` 是 1 或 0）。其他帳號的舊資料照樣留著（jp.6yuwei.com `docs/data.md` §5）；刪除帳號的人，信箱和密碼雜湊要真的不見，重跑搬帳號腳本也不會再搬回來。
+- 舊系統留下的帳號：`users` 那一筆、`account_tokens`、舊頭像資料夾 `uploads/user/<sub>`（`pictures` 是 1 或 0）。其他帳號的舊資料照樣留著（`6yuwei_auth/docs/data.md` §5）；刪除帳號的人，信箱和密碼雜湊要真的不見，重跑搬帳號腳本也不會再搬回來。
 
 血壓紀錄和分享、元件、點數和點數紀錄、收藏（`user_profiles`）都不動（2026-11-22 決定）。登入的 session 由身分中心的登出通知結束，這裡不刪。
+
+Nihongo Studio 的 access token 是 API 自己驗的 JWT，帳號刪除後最多還能用 10 分鐘；這段時間內同步的存檔會留下來（`6yuwei_auth/docs/operations.md` §4.5）。
 
 ```json
 { "sub": "64f1...", "erased": { "studio_saves": 1, "users": 1, "account_tokens": 0, "pictures": 1 } }
