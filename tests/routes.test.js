@@ -7,10 +7,14 @@ const http = require('node:http');
 const { after, before, test } = require('node:test');
 const mongoose = require('mongoose');
 const { SignJWT, exportJWK, generateKeyPair } = require('jose');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const { dirname, join } = require('node:path');
 const { buildApp } = require('../buildApp');
 const { getAllowedOrigins } = require('../config/origins');
 const { createIdentityV2 } = require('../services/oidc/setup');
 const { createTokenCrypto } = require('../services/oidc/tokenCrypto');
+const { eraseAccount } = require('../services/accountErase');
 
 const url = process.env.API_TEST_MONGO_URL;
 const KEY = Buffer.alloc(32, 9).toString('base64');
@@ -283,4 +287,57 @@ test('the provider erases an account\'s data with its internal token, and nobody
   assert.equal(await db.collection('bp_entries').countDocuments({ owner: USER }), 1);
   const again = await (await call('POST', `/internal/accounts/${OTHER}/erase`, { token: internal })).json();
   assert.equal(again.erased.user_profiles, 0);
+});
+
+test('erasing also removes the old users record, its one-time links and its files', { skip: !url }, async () => {
+  const db = mongoose.connection;
+  const ERASED = '64f1c2a0b1c2d3e4f5a6b704';
+  const KEPT = '64f1c2a0b1c2d3e4f5a6b705';
+  const id = (value) => new mongoose.Types.ObjectId(value);
+  await db.collection('users').insertMany([
+    {
+      _id: id(ERASED), email: 'gone@example.com', password: '$2b$10$x', photo: 'me.png',
+    },
+    { _id: id(KEPT), email: 'kept@example.com', password: '$2b$10$y' },
+  ]);
+  await db.collection('account_tokens').insertMany([
+    { userId: id(ERASED), purpose: 'reset-password', tokenHash: 'h1' },
+    { userId: id(KEPT), purpose: 'reset-password', tokenHash: 'h2' },
+  ]);
+  await db.collection('components').insertMany([
+    { userId: id(ERASED), styleFileName: 't-gone-1.css', javascriptFileName: 't-gone-1.js' },
+    { userId: id(ERASED), styleFileName: '../../escape.css', javascriptFileName: '' },
+    { userId: id(KEPT), styleFileName: 't-kept-1.css' },
+  ]);
+
+  const uploads = await fs.mkdtemp(join(os.tmpdir(), 'uploads-'));
+  try {
+    const write = async (file) => {
+      await fs.mkdir(dirname(join(uploads, file)), { recursive: true });
+      await fs.writeFile(join(uploads, file), 'x');
+    };
+    await Promise.all(['css/t-gone-1.css', 'js/t-gone-1.js', 'css/t-kept-1.css', `user/${ERASED}/img/me.png`, `user/${KEPT}/img/a.png`].map(write));
+    const exists = (file) => fs.access(join(uploads, file)).then(() => true, () => false);
+
+    const erased = await eraseAccount(ERASED, { uploadsDir: uploads });
+    assert.equal(erased.users, 1);
+    assert.equal(erased.account_tokens, 1);
+    assert.equal(erased.components, 2);
+    assert.equal(erased.files, 3);
+    assert.equal(await exists('css/t-gone-1.css'), false);
+    assert.equal(await exists('js/t-gone-1.js'), false);
+    assert.equal(await exists(`user/${ERASED}`), false);
+
+    // Another account keeps everything, old record included
+    assert.equal(await exists('css/t-kept-1.css'), true);
+    assert.equal(await exists(`user/${KEPT}/img/a.png`), true);
+    assert.equal(await db.collection('users').countDocuments({ _id: id(KEPT) }), 1);
+    assert.equal(await db.collection('account_tokens').countDocuments({ userId: id(KEPT) }), 1);
+    assert.equal(await db.collection('components').countDocuments({ userId: id(KEPT) }), 1);
+
+    const again = await eraseAccount(ERASED, { uploadsDir: uploads });
+    assert.deepEqual([again.users, again.account_tokens, again.files], [0, 0, 0]);
+  } finally {
+    await fs.rm(uploads, { recursive: true, force: true });
+  }
 });

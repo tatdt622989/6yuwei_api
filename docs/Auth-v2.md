@@ -142,10 +142,14 @@
 
 身分中心刪除帳號時呼叫。可以重複呼叫，結果相同。`sub` 格式不對回 400 `invalid_request`。
 
-刪除該 `sub` 的：`bp_entries`、`bp_shares`、`studio_saves`、`components`（他建立的）、`usertransitions`、`user_profiles`、`web_sessions`。
+刪除該 `sub` 的：
+
+- `bp_entries`、`bp_shares`、`studio_saves`、`components`（他建立的）、`usertransitions`、`user_profiles`、`web_sessions`。
+- 舊系統留下的 `users` 那一筆和 `account_tokens`。其他帳號的舊資料照樣留著（jp.6yuwei.com `docs/data.md` §5）；刪除帳號的人，信箱、密碼雜湊和個人資料要真的不見，重跑搬帳號腳本也不會再搬回來。
+- 檔案：他的元件的 CSS、JavaScript（`uploads/css`、`uploads/js`），和舊頭像資料夾 `uploads/user/<sub>`。`files` 是刪掉的檔案和資料夾數。
 
 ```json
-{ "sub": "64f1...", "erased": { "bp_entries": 120, "bp_shares": 1, "studio_saves": 1, "components": 4, "usertransitions": 9, "user_profiles": 1, "web_sessions": 2 } }
+{ "sub": "64f1...", "erased": { "bp_entries": 120, "bp_shares": 1, "studio_saves": 1, "components": 4, "usertransitions": 9, "user_profiles": 1, "web_sessions": 2, "users": 1, "account_tokens": 0, "files": 9 } }
 ```
 
 ## 5. 錯誤格式
