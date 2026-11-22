@@ -262,15 +262,12 @@ test('points: admins search, read and adjust; the balance never goes below zero'
   assert.equal(detail.transitions[0].actor, ADMIN);
 });
 
-test('the provider erases an account\'s data with its internal token, and nobody else can', { skip: !url }, async () => {
+test('the provider erases the Studio save with its internal token, and nobody else can', { skip: !url }, async () => {
   const db = mongoose.connection;
   await db.collection('bp_entries').insertOne({ owner: OTHER, kind: 'reading' });
-  await db.collection('bp_shares').insertOne({ owner: OTHER });
   await db.collection('studio_saves').insertOne({
     _id: OTHER, revision: 1, data: '{}', updatedAt: new Date(),
   });
-  await db.collection('usertransitions').insertOne({ userId: new mongoose.Types.ObjectId(OTHER), amount: -1 });
-  await db.collection('bp_entries').insertOne({ owner: USER, kind: 'reading' });
 
   const internal = await sign({ sub: 'idp-internal', client_id: 'idp-internal', scope: 'accounts.erase' });
   assert.equal((await call('POST', `/internal/accounts/${OTHER}/erase`, { as: 'admin' })).status, 403);
@@ -280,16 +277,16 @@ test('the provider erases an account\'s data with its internal token, and nobody
   const res = await call('POST', `/internal/accounts/${OTHER}/erase`, { token: internal });
   assert.equal(res.status, 200);
   const { erased } = await res.json();
-  assert.equal(erased.bp_entries, 1);
   assert.equal(erased.studio_saves, 1);
-  assert.equal(erased.user_profiles, 1);
-  assert.equal(erased.components, 0);
-  assert.equal(await db.collection('bp_entries').countDocuments({ owner: USER }), 1);
+  assert.equal(await db.collection('studio_saves').countDocuments({ _id: OTHER }), 0);
+  // The other services' data stays (decided 2026-11-22)
+  assert.equal(await db.collection('bp_entries').countDocuments({ owner: OTHER }), 1);
+  assert.equal(await db.collection('user_profiles').countDocuments({ _id: new mongoose.Types.ObjectId(OTHER) }), 1);
   const again = await (await call('POST', `/internal/accounts/${OTHER}/erase`, { token: internal })).json();
-  assert.equal(again.erased.user_profiles, 0);
+  assert.equal(again.erased.studio_saves, 0);
 });
 
-test('erasing also removes the old users record, its one-time links and its files', { skip: !url }, async () => {
+test('erasing removes the old account record, its one-time links and old pictures, nothing else', { skip: !url }, async () => {
   const db = mongoose.connection;
   const ERASED = '64f1c2a0b1c2d3e4f5a6b704';
   const KEPT = '64f1c2a0b1c2d3e4f5a6b705';
@@ -304,11 +301,8 @@ test('erasing also removes the old users record, its one-time links and its file
     { userId: id(ERASED), purpose: 'reset-password', tokenHash: 'h1' },
     { userId: id(KEPT), purpose: 'reset-password', tokenHash: 'h2' },
   ]);
-  await db.collection('components').insertMany([
-    { userId: id(ERASED), styleFileName: 't-gone-1.css', javascriptFileName: 't-gone-1.js' },
-    { userId: id(ERASED), styleFileName: '../../escape.css', javascriptFileName: '' },
-    { userId: id(KEPT), styleFileName: 't-kept-1.css' },
-  ]);
+  await db.collection('components').insertOne({ userId: id(ERASED), styleFileName: 't-gone-1.css' });
+  await db.collection('bp_shares').insertOne({ owner: ERASED, tokenHash: 'share-1' });
 
   const uploads = await fs.mkdtemp(join(os.tmpdir(), 'uploads-'));
   try {
@@ -316,27 +310,27 @@ test('erasing also removes the old users record, its one-time links and its file
       await fs.mkdir(dirname(join(uploads, file)), { recursive: true });
       await fs.writeFile(join(uploads, file), 'x');
     };
-    await Promise.all(['css/t-gone-1.css', 'js/t-gone-1.js', 'css/t-kept-1.css', `user/${ERASED}/img/me.png`, `user/${KEPT}/img/a.png`].map(write));
+    await Promise.all(['css/t-gone-1.css', `user/${ERASED}/img/me.png`, `user/${KEPT}/img/a.png`].map(write));
     const exists = (file) => fs.access(join(uploads, file)).then(() => true, () => false);
 
     const erased = await eraseAccount(ERASED, { uploadsDir: uploads });
-    assert.equal(erased.users, 1);
-    assert.equal(erased.account_tokens, 1);
-    assert.equal(erased.components, 2);
-    assert.equal(erased.files, 3);
-    assert.equal(await exists('css/t-gone-1.css'), false);
-    assert.equal(await exists('js/t-gone-1.js'), false);
+    assert.deepEqual(erased, {
+      studio_saves: 0, users: 1, account_tokens: 1, pictures: 1,
+    });
     assert.equal(await exists(`user/${ERASED}`), false);
 
-    // Another account keeps everything, old record included
-    assert.equal(await exists('css/t-kept-1.css'), true);
+    // Components, their files, shares and every other account stay
+    assert.equal(await exists('css/t-gone-1.css'), true);
+    assert.equal(await db.collection('components').countDocuments({ userId: id(ERASED) }), 1);
+    assert.equal(await db.collection('bp_shares').countDocuments({ owner: ERASED }), 1);
     assert.equal(await exists(`user/${KEPT}/img/a.png`), true);
     assert.equal(await db.collection('users').countDocuments({ _id: id(KEPT) }), 1);
     assert.equal(await db.collection('account_tokens').countDocuments({ userId: id(KEPT) }), 1);
-    assert.equal(await db.collection('components').countDocuments({ userId: id(KEPT) }), 1);
 
     const again = await eraseAccount(ERASED, { uploadsDir: uploads });
-    assert.deepEqual([again.users, again.account_tokens, again.files], [0, 0, 0]);
+    assert.deepEqual(again, {
+      studio_saves: 0, users: 0, account_tokens: 0, pictures: 0,
+    });
   } finally {
     await fs.rm(uploads, { recursive: true, force: true });
   }

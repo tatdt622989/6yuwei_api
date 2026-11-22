@@ -144,12 +144,13 @@
 
 刪除該 `sub` 的：
 
-- `bp_entries`、`bp_shares`、`studio_saves`、`components`（他建立的）、`usertransitions`、`user_profiles`、`web_sessions`。
-- 舊系統留下的 `users` 那一筆和 `account_tokens`。其他帳號的舊資料照樣留著（jp.6yuwei.com `docs/data.md` §5）；刪除帳號的人，信箱、密碼雜湊和個人資料要真的不見，重跑搬帳號腳本也不會再搬回來。
-- 檔案：他的元件的 CSS、JavaScript（`uploads/css`、`uploads/js`），和舊頭像資料夾 `uploads/user/<sub>`。`files` 是刪掉的檔案和資料夾數。
+- `studio_saves`：Nihongo Studio 的存檔。只有這個 App 的資料跟著帳號刪除。
+- 舊系統留下的帳號：`users` 那一筆、`account_tokens`、舊頭像資料夾 `uploads/user/<sub>`（`pictures` 是 1 或 0）。其他帳號的舊資料照樣留著（jp.6yuwei.com `docs/data.md` §5）；刪除帳號的人，信箱和密碼雜湊要真的不見，重跑搬帳號腳本也不會再搬回來。
+
+血壓紀錄和分享、元件、點數和點數紀錄、收藏（`user_profiles`）都不動（2026-11-22 決定）。登入的 session 由身分中心的登出通知結束，這裡不刪。
 
 ```json
-{ "sub": "64f1...", "erased": { "bp_entries": 120, "bp_shares": 1, "studio_saves": 1, "components": 4, "usertransitions": 9, "user_profiles": 1, "web_sessions": 2, "users": 1, "account_tokens": 0, "files": 9 } }
+{ "sub": "64f1...", "erased": { "studio_saves": 1, "users": 1, "account_tokens": 0, "pictures": 1 } }
 ```
 
 ## 5. 錯誤格式
