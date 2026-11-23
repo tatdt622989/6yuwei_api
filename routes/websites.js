@@ -126,9 +126,6 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 
 // 新增資料(有權限)
 router.post('/admin/', requireAdmin, multer().any(), async (req, res) => {
-  const { user } = req;
-  const { id } = user;
-
   if (!req.body || !req.body.data || !req.body.data.title) {
     return res.status(400).send('Lack of essential information');
   }
@@ -136,7 +133,6 @@ router.post('/admin/', requireAdmin, multer().any(), async (req, res) => {
   const { data } = req.body;
 
   const website = new Website({
-    userId: id,
     ...data,
   });
   await website.save();

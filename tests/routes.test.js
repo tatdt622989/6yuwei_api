@@ -175,6 +175,19 @@ test('admin routes refuse ordinary accounts and let admins through', { skip: !ur
   }));
 });
 
+test('admins add, change and delete works (websites, 3D, animations)', { skip: !url }, async () => {
+  await Promise.all(['websites', '3dcgs', 'animations'].map(async (kind) => {
+    const added = await call('POST', `/${kind}/admin/`, { as: 'admin', body: { data: { title: `test ${kind}`, category: 'Application' } } });
+    assert.equal(added.status, 200, `add ${kind}`);
+    const { data } = await added.json();
+    const changed = await call('PUT', `/${kind}/admin/`, { as: 'admin', body: { _id: data._id, data: { title: `changed ${kind}` } } });
+    assert.equal(changed.status, 200, `change ${kind}`);
+    assert.equal((await changed.json()).data.title, `changed ${kind}`);
+    const deleted = await call('DELETE', `/${kind}/admin/${data._id}`, { as: 'admin' });
+    assert.equal(deleted.status, 200, `delete ${kind}`);
+  }));
+});
+
 test('public routes need nobody', { skip: !url }, async () => {
   await Promise.all(PUBLIC_ROUTES.map(async ([method, path]) => {
     const res = await call(method, path);
