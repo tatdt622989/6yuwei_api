@@ -1,23 +1,16 @@
 # 血壓日誌 API
 
-`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。除了 `POST /bp/shared/`，全部需要登入，靠 `access_token` cookie 辨識帳號，每個帳號只能碰到自己的資料。
+`bp-diary` PWA（`https://bp.6yuwei.com`）使用的路由。除了 `POST /bp/shared/`，全部需要登入，每個帳號只能碰到自己的資料。
 
 ## 登入
 
-沿用共用的 `POST /signup/`、`POST /login/`、`GET /loginStatus/`、`POST /logout/`。
+bp 沒有自己的登入後端，由這個 API 的 Token Handler 代為向身分中心 `auth.6yuwei.com` 登入，見 [Session-API.md](Session-API.md)：
 
-`/signup/` 和 `/login/` 多了選用欄位 `remember: true`：簽發 30 天的 token 和持久 cookie。不帶這個欄位時行為不變（`TOKEN_EXPIRES_IN` 的 token 加 session cookie）。PWA 需要它，否則每次關閉 App 都可能要重新登入。
+- 登入：整頁跳到 `GET /session/login?app=bp&return=<路徑>`。
+- 登入狀態：`GET /session/me`。
+- 登出：`POST /session/logout`，再整頁跳到回應裡的 `logoutUrl`。
 
-### Google 登入
-
-`GET /bp/google/` 導向 Google，登入後回到 `GET /bp/google/callback/`，在這個網域設定 30 天的 `access_token` cookie，再導回 App。失敗時導回 `/login?google=failed`。cookie 裡的 `state` 用來確認回應屬於同一個瀏覽器。
-
-Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://api.6yuwei.com/bp/google/callback/` 加進「已授權的重新導向 URI」。
-
-| 環境變數 | 預設值 | 說明 |
-|---|---|---|
-| `BP_APP_URL` | `https://bp.6yuwei.com` | 登入後導回的網址 |
-| `BP_GOOGLE_CALLBACK_URL` | `https://api.6yuwei.com/bp/google/callback/` | 告訴 Google 的回呼網址 |
+session cookie 有 30 天的 Max-Age，PWA 關閉後也會保留。所有請求都要帶 `credentials: 'include'` 和 `X-Requested-With: 6yuwei`；會修改資料的請求，`Origin` 必須在允許清單裡（bp 的網址在清單裡，見 Session-API §4）。沒登入回 401 `unauthenticated`。
 
 ## `POST /bp/sync/`
 
@@ -41,7 +34,9 @@ Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://
 
 ## `DELETE /bp/data/`
 
-清空帳號的日誌。內容會清除，只留下標記為已刪除的 id，讓其他裝置同步時也一起刪除。刪除帳號時整批資料會真的移除。
+清空帳號的日誌。內容會清除，只留下標記為已刪除的 id，讓其他裝置同步時也一起刪除。
+
+在身分中心刪除帳號時，血壓資料不動（2026-11-22 決定，見 [Auth-v2.md](Auth-v2.md) §4.3）。
 
 ## 家人分享連結
 
@@ -49,7 +44,7 @@ Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://
 
 - `GET /bp/share/`：回傳 `{ active, expiresAt }`。
 - `POST /bp/share/`：body 是 `{ "days": 7 | 30 | 90 }`，回傳 `{ token, expiresAt }`。舊連結會立刻失效。
-- `DELETE /bp/share/`：停用連結。`DELETE /bp/data/` 和刪除帳號也會停用。
+- `DELETE /bp/share/`：停用連結。`DELETE /bp/data/` 也會停用。刪除帳號不會停用連結，連結到期前家人仍看得到紀錄。
 - `POST /bp/shared/`：不需要登入，body 是 `{ "token": "..." }`。token 放在 body 才不會進入存取紀錄。每個 IP 每分鐘 60 次，回應不快取。連結無效或過期時回 404。
 
 ```json
@@ -64,7 +59,7 @@ Google Cloud Console 的 OAuth 用戶端（`GOOGLE_CLIENT_ID`）要把 `https://
 
 ## `POST /bp/ocr/`
 
-只有管理員帳號（`permissions: admin`）可以呼叫，其他帳號回 401。一般使用者是在瀏覽器用自己的 Claude 金鑰直接呼叫 Anthropic，金鑰和照片都不會經過這台伺服器。
+只有角色含 `admin` 的帳號可以呼叫：沒登入回 401 `unauthenticated`，其他帳號回 403 `forbidden`。一般使用者是在瀏覽器用自己的 Claude 金鑰直接呼叫 Anthropic，金鑰和照片都不會經過這台伺服器。
 
 multipart 欄位 `image`（jpeg、png、webp，最多 4 MB）。照片只存在這次請求的記憶體中，不寫入硬碟或資料庫，但會送到 Anthropic 辨識。每個帳號每小時 40 次。
 

@@ -1,11 +1,11 @@
 const express = require('express');
-const { requireAdmin } = require('../middlewares/auth');
+const { requireRole } = require('../middlewares/authenticate');
 const dictWords = require('../controllers/dictWords');
 
 const router = express.Router();
 
-// Every route is for admins. verifyToken in app.js has already identified the user
-router.use(requireAdmin);
+// Every route is for admins: on the web with a session, in Nihongo Studio with a studio token
+router.use(requireRole('admin', { scope: 'studio' }));
 
 router.get('/', dictWords.list);
 router.post('/', dictWords.create);

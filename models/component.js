@@ -14,7 +14,7 @@ const ComponentType = mongoose.model('ComponentType', componentTypeSchema);
 
 // 元件
 const componentSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'UserProfile' },
   componentsType: { type: mongoose.Schema.Types.ObjectId, ref: 'ComponentType' },
   title: String,
   styleFileName: String,

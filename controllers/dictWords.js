@@ -1,10 +1,15 @@
 const { DictWord, DictWordHistory } = require('../models/dictWord');
+const UserProfile = require('../models/userProfile');
 const { buildWord, DictWordError, LEVELS } = require('../services/dictWords');
 const { toHiragana, romajiKey } = require('../services/dictWordKeys');
 const { escapeRegex } = require('../services/text');
 
 const LIST_FIELDS = 'readings romaji level levels pos verbClass meanings categories exampleCount formCount quality.flags revision updatedAt';
-const editorOf = (req) => ({ userId: String(req.user._id), username: req.user.username });
+/** Who made an edit, for the history. The name is the display copy kept with the profile. */
+const editorOf = async (req) => {
+  const profile = await UserProfile.findById(req.auth.sub, { display: 1 }).lean();
+  return { userId: String(req.auth.sub), username: profile?.display?.name ?? '' };
+};
 
 const guard = (handler) => async (req, res) => {
   try {
@@ -53,10 +58,15 @@ const list = guard(async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const [items, total] = await Promise.all([
-    DictWord.find(filter).select(LIST_FIELDS).sort({ levelRank: 1, _id: 1 }).skip((page - 1) * limit).limit(limit).lean(),
+    DictWord.find(filter).select(LIST_FIELDS).sort({ levelRank: 1, _id: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
     DictWord.countDocuments(filter),
   ]);
-  res.json({ items, total, page, limit });
+  res.json({
+    items, total, page, limit,
+  });
 });
 
 const get = guard(async (req, res) => {
@@ -76,14 +86,21 @@ const create = guard(async (req, res) => {
     return;
   }
   const now = new Date();
-  const editor = editorOf(req);
-  const next = { ...word, revision: 1, createdAt: now, updatedAt: now, updatedBy: editor };
-  await DictWordHistory.create({ wordId: id, action: 'create', revision: 1, editor, after: next });
+  const editor = await editorOf(req);
+  const next = {
+    ...word, revision: 1, createdAt: now, updatedAt: now, updatedBy: editor,
+  };
+  await DictWordHistory.create({
+    wordId: id, action: 'create', revision: 1, editor, after: next,
+  });
   await DictWord.create(next);
   res.status(201).json(next);
 });
 
-/** History goes first, so an edit is never saved without a record. A failed edit removes its history row. */
+/**
+ * History goes first, so an edit is never saved without a record.
+ * A failed edit removes its history row.
+ */
 const update = guard(async (req, res) => {
   const revision = revisionOf(req, res);
   if (revision === null) return;
@@ -97,7 +114,7 @@ const update = guard(async (req, res) => {
     await conflict(res, id);
     return;
   }
-  const editor = editorOf(req);
+  const editor = await editorOf(req);
   const next = {
     ...buildWord(req.body, id, existing),
     createdAt: existing.createdAt,
@@ -106,7 +123,9 @@ const update = guard(async (req, res) => {
     updatedAt: new Date(),
     updatedBy: editor,
   };
-  const history = await DictWordHistory.create({ wordId: id, action: 'update', revision: next.revision, editor, before: existing, after: next });
+  const history = await DictWordHistory.create({
+    wordId: id, action: 'update', revision: next.revision, editor, before: existing, after: next,
+  });
   let matched = 0;
   try {
     ({ matchedCount: matched } = await DictWord.replaceOne({ _id: id, revision }, next));
@@ -129,7 +148,9 @@ const remove = guard(async (req, res) => {
     res.status(404).json({ error: 'word not found' });
     return;
   }
-  const history = await DictWordHistory.create({ wordId: id, action: 'delete', revision, editor: editorOf(req), before: existing });
+  const history = await DictWordHistory.create({
+    wordId: id, action: 'delete', revision, editor: await editorOf(req), before: existing,
+  });
   const { deletedCount } = await DictWord.deleteOne({ _id: id, revision });
   if (!deletedCount) {
     await DictWordHistory.deleteOne({ _id: history._id });
@@ -140,8 +161,13 @@ const remove = guard(async (req, res) => {
 });
 
 const history = guard(async (req, res) => {
-  const items = await DictWordHistory.find({ wordId: req.params.id }).sort({ at: -1 }).limit(50).lean();
+  const items = await DictWordHistory.find({ wordId: req.params.id })
+    .sort({ at: -1 })
+    .limit(50)
+    .lean();
   res.json({ items });
 });
 
-module.exports = { list, get, create, update, remove, history };
+module.exports = {
+  list, get, create, update, remove, history,
+};

@@ -19,4 +19,4 @@ const sendUpload = (res, folder, name) => {
   });
 };
 
-module.exports = { safeFileName, sendUpload };
+module.exports = { UPLOADS_DIR, safeFileName, sendUpload };

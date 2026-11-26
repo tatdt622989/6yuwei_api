@@ -7,7 +7,9 @@ const path = require('path');
 const fs = require('fs');
 const validator = require('validator');
 const { escapeRegex } = require('../services/text');
-const { requireAdmin } = require('../middlewares/auth');
+const { requireRole } = require('../middlewares/authenticate');
+
+const requireAdmin = requireRole('admin');
 const { createImageStorage, imageFileFilter } = require('../middlewares/upload');
 
 // models
@@ -124,9 +126,6 @@ router.delete('/admin/photo/', requireAdmin, async (req, res) => {
 
 // 新增資料(有權限)
 router.post('/admin/', requireAdmin, multer().any(), async (req, res) => {
-  const { user } = req;
-  const { id } = user;
-
   if (!req.body || !req.body.data || !req.body.data.title) {
     return res.status(400).send('Lack of essential information');
   }
@@ -134,7 +133,6 @@ router.post('/admin/', requireAdmin, multer().any(), async (req, res) => {
   const { data } = req.body;
 
   const threeDCG = new ThreeDCG({
-    userId: id,
     ...data,
   });
   await threeDCG.save();
@@ -378,6 +376,8 @@ router.get('/admin/category/', requireAdmin, async (req, res) => {
 });
 
 // 自訂錯誤處理中間件
+// Express needs all four arguments to treat this as an error handler
+// eslint-disable-next-line no-unused-vars
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     // Multer 錯誤處理

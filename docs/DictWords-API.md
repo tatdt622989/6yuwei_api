@@ -4,9 +4,9 @@
 
 ## 權限
 
-- 登入：沿用 SSO 的 `access_token` cookie，由全域的 `verifyToken` 驗證。
-- 授權：所有路由都經過 `requireAdmin`，只有 `users.permissions` 是 `admin` 的帳號能用。
-- 未登入回 403，已登入但不是管理者回 401。
+- 登入：網頁用 Token Handler 的 session cookie；Nihongo Studio 用身分中心發的 access token（`Authorization: Bearer`，scope `studio`）。見 [Auth-v2.md](Auth-v2.md)。
+- 授權：所有路由都經過 `requireRole('admin', { scope: 'studio' })`，只有角色含 `admin` 的帳號能用。
+- 未登入回 401 `unauthenticated`；已登入但不是管理者回 403 `forbidden`；Bearer token 沒有 `studio` scope 回 403 `insufficient_scope`（[Auth-v2.md](Auth-v2.md) §5）。
 
 ## 環境變數
 
@@ -14,7 +14,6 @@
 |---|---|---|
 | `DICT_DB_NAME` | `japanese_learning_app` | `dict_words` 所在的資料庫 |
 | `DICT_EDITOR_DB_URL` | 用 `DB_URL` | 編輯路由的連線，帳號 `dict_editor` 只能改 `dict_words` 和 `dict_words_history` |
-| `GOOGLE_DESKTOP_CLIENT_ID` | 無 | Nihongo Studio 的 Google 登入（`POST /app/googleLogin/`，`platform: "desktop"`）。沒有設定時回 503 |
 | `DICT_READER_DB_URL` | 用 `DB_URL` | App 路由的連線，帳號 `dict_reader` 只能讀 `dict_words`，並寫入 `practice_records`、`vocabulary_stats` |
 
 連線字串的格式是 `mongodb://帳號:密碼@主機:27017/japanese_learning_app?authSource=japanese_learning_app`。沒有設定專用連線時，`DB_URL` 的帳號要有這些權限。瀏覽器管理介面的網域要加進 `config/origins.js`。

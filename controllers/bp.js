@@ -2,7 +2,7 @@ const bpSync = require('../services/bpSync');
 const bpOcr = require('../services/bpOcr');
 const bpShare = require('../services/bpShare');
 
-const ownerOf = (req) => req.user.id;
+const ownerOf = (req) => req.auth.sub;
 
 const guard = (label, handler) => async (req, res) => {
   try {

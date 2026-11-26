@@ -11,25 +11,18 @@
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
-    "@google/genai": "^3.0.0",
-    "apple-signin-auth": "^2.1.0",
-    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.6",
     "dompurify": "^3.0.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-    "google-auth-library": "^11.3.3",
     "helmet": "^8.3.0",
+    "jose": "^6.2.17",
     "jsdom": "^31.0.0",
-    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.12.0",
     "multer": "^2.5.0",
     "openai": "^7.53.0",
-    "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
-    "socket.io": "^4.7.2",
-    "validator": "^13.9.0",
+    "validator": "^13.15.35",
     "xss": "^1.0.17"
   },
   "devDependencies": {
@@ -40,9 +33,5 @@
   },
   "engines": {
     "node": ">=24.22.1 <25"
-  },
-  "allowScripts": {
-    "bcrypt@5.1.0": true,
-    "protobufjs@7.5.4": true
   }
 }

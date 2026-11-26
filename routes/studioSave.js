@@ -1,11 +1,11 @@
 const express = require('express');
-const { requireUser } = require('../middlewares/auth');
+const { requireUser } = require('../middlewares/authenticate');
 const studioSave = require('../controllers/studioSave');
 
 const router = express.Router();
 
-// verifyToken in app.js has identified the user. Each account reaches only its own save
-router.use(requireUser);
+// Nihongo Studio calls this with a studio access token. Each account reaches only its own save
+router.use(requireUser({ scope: 'studio' }));
 
 router.get('/', studioSave.get);
 router.put('/', studioSave.put);

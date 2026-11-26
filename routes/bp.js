@@ -1,6 +1,8 @@
 const express = require('express');
 const multer = require('multer');
-const { requireAdmin, requireUser } = require('../middlewares/auth');
+const { requireRole, requireUser } = require('../middlewares/authenticate');
+
+const requireAdmin = requireRole('admin');
 const { limitRequestsByIp } = require('../middlewares/rateLimit');
 const bp = require('../controllers/bp');
 
@@ -9,10 +11,10 @@ const router = express.Router();
 const MINUTE = 60 * 1000;
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 
-// verifyToken in app.js has identified the user. Each account reaches only its own diary
-router.use(requireUser);
+// authenticate in app.js has identified the caller. Each account reaches only its own diary
+router.use(requireUser());
 
-const accountOf = (req) => req.user.id;
+const accountOf = (req) => req.auth.sub;
 
 const limitSync = limitRequestsByIp({
   scope: 'bp-sync', maxRequests: 240, windowMs: MINUTE, keyOf: accountOf,
