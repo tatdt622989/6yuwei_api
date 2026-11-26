@@ -16,6 +16,7 @@ const studioSaveRouter = require('./routes/studioSave');
 const studioUpdatesRouter = require('./routes/studioUpdates');
 const bpRouter = require('./routes/bp');
 const bpSharedRouter = require('./routes/bpShared');
+const { createLegacyRedirects } = require('./routes/legacyRedirects');
 const internalRouter = require('./routes/internal');
 const meRouter = require('./routes/me');
 const { requireRole, requireTrustedOrigin } = require('./middlewares/authenticate');
@@ -79,6 +80,7 @@ const buildApp = ({ identity, allowedOrigins, trustProxy = false }) => {
   // Session requests that change data must come from a listed site (docs/Session-API.md §4)
   app.use(requireTrustedOrigin(allowedOrigins));
 
+  app.use(createLegacyRedirects());
   app.use('/session/', identity.sessionRouter);
   app.use('/me/', meRouter);
   app.use('/admin/profiles/', adminProfilesRouter);
